@@ -4,6 +4,10 @@ on:
   # Manual trigger with options
   workflow_dispatch:
     inputs:
+      version:
+        description: 'Version (e.g. 1.0.0) — required for manual releases'
+        required: false
+        type: string
       publish_release:
         description: 'Publish as GitHub Release'
         required: false
@@ -76,7 +80,9 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ -n "${{ inputs.version }}" ]]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION=${GITHUB_REF#refs/tags/v}
           else
             VERSION="0.0.0"
@@ -147,7 +153,9 @@ jobs:
         id: version
         shell: bash
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ -n "${{ inputs.version }}" ]]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION=${GITHUB_REF#refs/tags/v}
           else
             VERSION="0.0.0"
@@ -334,7 +342,9 @@ jobs:
       - name: Rename macOS artifacts
         id: version
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ -n "${{ inputs.version }}" ]]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION=${GITHUB_REF#refs/tags/v}
           else
             VERSION="0.0.0"
@@ -393,7 +403,9 @@ jobs:
         id: changelog
         run: |
           # Get version from tag if available
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ -n "${{ inputs.version }}" ]]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION=${GITHUB_REF#refs/tags/v}
           else
             VERSION="0.0.0"
