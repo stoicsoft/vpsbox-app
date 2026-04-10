@@ -1,0 +1,388 @@
+version: 2.1
+
+orbs:
+  node: circleci/node@5
+  win: circleci/windows@5
+
+# ============================================
+# Reusable Commands
+# ============================================
+commands:
+  extract-version:
+    description: Extract version from git tag
+    steps:
+      - run:
+          name: Extract version
+          command: |
+            if [[ "$CIRCLE_TAG" == v* ]]; then
+              VERSION=${CIRCLE_TAG#v}
+            else
+              VERSION="0.0.0"
+            fi
+            VERSION_DASH=${VERSION//./-}
+            echo "export VERSION=$VERSION" >> $BASH_ENV
+            echo "export VERSION_DASH=$VERSION_DASH" >> $BASH_ENV
+            echo "Version: $VERSION ($VERSION_DASH)"
+
+# ============================================
+# Jobs
+# ============================================
+jobs:
+  # ------------------------------------------
+  # Linux Build
+  # ------------------------------------------
+  build-linux:
+    docker:
+      - image: cimg/node:20.18
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Install Go 1.25.0
+          command: |
+            wget -q https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
+            rm go1.25.0.linux-amd64.tar.gz
+            echo 'export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH' >> $BASH_ENV
+            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
+      - run:
+          name: Tidy Go modules
+          command: go mod tidy
+      - run:
+          name: Install Linux build dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - run:
+          name: Install Wails CLI
+          command: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+      - node/install-packages:
+          app-dir: frontend
+          pkg-manager: npm
+          cache-path: frontend/node_modules
+      - run:
+          name: Build application
+          command: wails build -clean -tags webkit2_41
+      - extract-version
+      - run:
+          name: Package Linux artifacts
+          command: |
+            mkdir -p release
+
+            # Create tar.gz archive
+            tar -czf "release/VPSBox-${VERSION_DASH}-linux-amd64.tar.gz" -C build/bin vpsbox
+            echo "Created: VPSBox-${VERSION_DASH}-linux-amd64.tar.gz"
+
+            echo "=== Artifacts ==="
+            ls -la release/
+      - persist_to_workspace:
+          root: release
+          paths:
+            - '*.tar.gz'
+
+  # ------------------------------------------
+  # Windows Build
+  # ------------------------------------------
+  build-windows:
+    executor:
+      name: win/default
+      size: large
+    steps:
+      - checkout
+      - run:
+          name: Install Go 1.25.0 and NSIS
+          command: |
+            choco install golang --version=1.25.0 -y --no-progress
+            choco install nsis -y --no-progress
+            refreshenv
+          shell: powershell.exe
+      - run:
+          name: Setup Node.js 20
+          command: |
+            nvm install 20
+            nvm use 20
+          shell: bash.exe
+      - run:
+          name: Configure module and install Wails
+          command: |
+            export PATH="/c/Program Files/Go/bin:$HOME/go/bin:$PATH"
+            go mod tidy
+            go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+          shell: bash.exe
+      - run:
+          name: Install frontend dependencies
+          command: cd frontend && npm ci
+          shell: bash.exe
+      - run:
+          name: Build application with NSIS installer
+          command: |
+            export PATH="/c/Program Files/Go/bin:$HOME/go/bin:/c/Program Files (x86)/NSIS:$PATH"
+            wails build -clean -nsis
+          shell: bash.exe
+      - run:
+          name: Rename Windows artifacts
+          shell: powershell.exe
+          command: |
+            if ($env:CIRCLE_TAG -and $env:CIRCLE_TAG.StartsWith("v")) {
+              $version = $env:CIRCLE_TAG.Substring(1)
+            } else {
+              $version = "0.0.0"
+            }
+            $versionDash = $version -replace '\.', '-'
+
+            Write-Host "Version: $version -> $versionDash"
+            Write-Host "Files before rename:"
+            Get-ChildItem -Path build\bin -Recurse
+
+            New-Item -ItemType Directory -Force -Path release | Out-Null
+
+            # Copy standalone exe
+            $standaloneExe = Get-ChildItem -Path build\bin -Filter "vpsbox.exe" | Select-Object -First 1
+            if ($standaloneExe) {
+              $newName = "VPSBox-$versionDash-windows.exe"
+              Copy-Item -Path $standaloneExe.FullName -Destination "release\$newName"
+              Write-Host "Copied: $($standaloneExe.Name) -> $newName"
+            }
+
+            # Copy NSIS installer
+            $installerExe = Get-ChildItem -Path build\bin -Filter "*installer*.exe" | Select-Object -First 1
+            if ($installerExe) {
+              $newName = "VPSBox-$versionDash-windows-setup.exe"
+              Copy-Item -Path $installerExe.FullName -Destination "release\$newName"
+              Write-Host "Copied: $($installerExe.Name) -> $newName"
+            }
+
+            Write-Host "=== Release artifacts ==="
+            Get-ChildItem -Path release
+      - persist_to_workspace:
+          root: release
+          paths:
+            - '*.exe'
+
+  # ------------------------------------------
+  # macOS Build (Code Signing + Notarization)
+  # ------------------------------------------
+  build-macos:
+    macos:
+      xcode: 15.4.0
+    resource_class: m4pro.medium
+    steps:
+      - checkout
+      - run:
+          name: Setup Go
+          command: |
+            brew install go
+            echo 'export PATH="/opt/homebrew/bin:$HOME/go/bin:$PATH"' >> $BASH_ENV
+            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
+      - run:
+          name: Setup Node.js 20
+          command: |
+            brew install node@20
+            echo 'export PATH="/opt/homebrew/opt/node@20/bin:$PATH"' >> $BASH_ENV
+      - run:
+          name: Configure module and install Wails
+          command: |
+            go mod tidy
+            go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+      - run:
+          name: Install frontend dependencies
+          command: cd frontend && npm ci
+      - run:
+          name: Build application
+          command: wails build -clean
+      - run:
+          name: Import Code Signing Certificate
+          command: |
+            echo "$MACOS_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
+
+            KEYCHAIN_PATH=/tmp/app-signing.keychain-db
+            KEYCHAIN_PASS="${KEYCHAIN_PASSWORD:-$(openssl rand -base64 32)}"
+            security create-keychain -p "$KEYCHAIN_PASS" $KEYCHAIN_PATH
+            security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+            security unlock-keychain -p "$KEYCHAIN_PASS" $KEYCHAIN_PATH
+
+            security import /tmp/certificate.p12 \
+              -P "$MACOS_CERTIFICATE_PASSWORD" \
+              -A \
+              -t cert \
+              -f pkcs12 \
+              -k $KEYCHAIN_PATH
+
+            security list-keychain -d user -s $KEYCHAIN_PATH
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASS" $KEYCHAIN_PATH
+
+            echo "export KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $BASH_ENV
+            echo "export KEYCHAIN_PASS=$KEYCHAIN_PASS" >> $BASH_ENV
+      - run:
+          name: Code sign application
+          command: |
+            APP_PATH="build/bin/vpsbox.app"
+
+            # Find signing identity
+            IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+            echo "Signing with identity: $IDENTITY"
+
+            # Deep sign the app bundle with hardened runtime (required for notarization)
+            codesign --deep --force --options runtime \
+              --sign "$IDENTITY" \
+              --keychain "$KEYCHAIN_PATH" \
+              "$APP_PATH"
+
+            # Verify
+            codesign --verify --deep --strict "$APP_PATH"
+            echo "Code signing verified"
+      - run:
+          name: Create DMG
+          command: |
+            brew install create-dmg || true
+
+            mkdir -p release
+
+            create-dmg \
+              --volname "VPSBox" \
+              --window-pos 200 120 \
+              --window-size 600 400 \
+              --icon-size 100 \
+              --icon "vpsbox.app" 175 190 \
+              --app-drop-link 425 190 \
+              "release/VPSBox.dmg" \
+              "build/bin/vpsbox.app" || true
+
+            # Fallback to hdiutil if create-dmg fails
+            if [ ! -f "release/VPSBox.dmg" ]; then
+              hdiutil create -volname "VPSBox" \
+                -srcfolder "build/bin/vpsbox.app" \
+                -ov -format UDZO \
+                "release/VPSBox.dmg"
+            fi
+      - run:
+          name: Sign DMG
+          command: |
+            IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+            codesign --force --sign "$IDENTITY" --keychain "$KEYCHAIN_PATH" "release/VPSBox.dmg"
+      - run:
+          name: Notarize macOS archives
+          command: |
+            xcrun notarytool store-credentials "notary-profile" \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD"
+
+            echo "Notarizing DMG..."
+            xcrun notarytool submit "release/VPSBox.dmg" --keychain-profile "notary-profile" --wait
+
+            echo "Stapling DMG..."
+            xcrun stapler staple "release/VPSBox.dmg"
+      - run:
+          name: Cleanup keychain
+          when: always
+          command: security delete-keychain "$KEYCHAIN_PATH" || true
+      - extract-version
+      - run:
+          name: Rename macOS artifacts
+          command: |
+            cd release
+
+            echo "Files before rename:"
+            ls -la
+
+            if [ -f "VPSBox.dmg" ]; then
+              mv "VPSBox.dmg" "VPSBox-${VERSION_DASH}-macos.dmg"
+              echo "Renamed: VPSBox.dmg -> VPSBox-${VERSION_DASH}-macos.dmg"
+            fi
+
+            # Also create a zip of the .app
+            cd ..
+            ditto -c -k --sequesterRsrc --keepParent "build/bin/vpsbox.app" "release/VPSBox-${VERSION_DASH}-macos.zip"
+
+            echo "=== Final artifacts ==="
+            ls -la release/
+      - persist_to_workspace:
+          root: release
+          paths:
+            - '*.dmg'
+            - '*.zip'
+
+  # ------------------------------------------
+  # Create GitHub Release
+  # ------------------------------------------
+  release:
+    docker:
+      - image: cimg/node:20.18
+    steps:
+      - checkout
+      - attach_workspace:
+          at: artifacts
+      - run:
+          name: Display downloaded files
+          command: ls -R artifacts
+      - run:
+          name: Install GitHub CLI
+          command: |
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli-stable.list > /dev/null
+            sudo apt-get update
+            sudo apt-get install -y gh
+      - run:
+          name: Extract changelog and create release
+          command: |
+            export GH_TOKEN="$RELEASES_PAT"
+
+            # Get version from tag
+            if [[ "$CIRCLE_TAG" == v* ]]; then
+              VERSION=${CIRCLE_TAG#v}
+            else
+              echo "No version tag found"
+              exit 1
+            fi
+            echo "Creating release for version: $VERSION"
+
+            # Extract changelog if exists
+            CHANGELOG=""
+            if [ -f "CHANGELOG.md" ]; then
+              CHANGELOG=$(awk "/^# \[${VERSION}\]/{flag=1; next} /^# \[/{flag=0} flag" CHANGELOG.md)
+            fi
+
+            # Create draft release on the releases repo
+            gh release create "v${VERSION}" \
+              --repo stoicsoft/vpsbox-releases \
+              --title "v${VERSION}" \
+              --draft \
+              --notes "${CHANGELOG:-Release v${VERSION}}" \
+              artifacts/*
+
+# ============================================
+# Workflows
+# ============================================
+workflows:
+  build-and-release:
+    jobs:
+      # Build all platforms in parallel
+      - build-linux:
+          context: vpsbox-build
+          filters:
+            tags:
+              only: /^v.*/
+      - build-windows:
+          context: vpsbox-build
+          filters:
+            tags:
+              only: /^v.*/
+      - build-macos:
+          context: vpsbox-build
+          filters:
+            tags:
+              only: /^v.*/
+
+      # Release only on tags (creates draft - publish manually in GitHub)
+      - release:
+          context: vpsbox-build
+          requires:
+            - build-linux
+            - build-windows
+            - build-macos
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
