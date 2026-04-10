@@ -56,12 +56,22 @@ type Job = {
   finishedAt?: string;
 };
 
+type UpdateInfo = {
+  available: boolean;
+  current: string;
+  latest: string;
+  url: string;
+  checkedAt?: string;
+  releasedAt?: string;
+};
+
 type AppState = {
   appVersion: string;
   platform: string;
   requirements: Requirement[];
   instances: Sandbox[];
   jobs: Job[];
+  update?: UpdateInfo;
 };
 
 type Section = 'servers' | 'system' | 'activity';
@@ -412,6 +422,7 @@ function App() {
   const [actionsBusy, setActionsBusy] = useState<Record<string, boolean>>({});
   const [copiedCommand, setCopiedCommand] = useState('');
   const [viewingKeys, setViewingKeys] = useState<{ privateKey: string; publicKey: string } | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   const requirementsByName = useMemo(() => {
     const map = new Map<string, Requirement>();
@@ -659,6 +670,27 @@ function App() {
               <p>{error}</p>
             </div>
             <button type="button" className="banner-dismiss" onClick={() => setError('')}>
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
+        {state.update?.available && !updateDismissed ? (
+          <div className="banner banner-update" role="status">
+            <div className="banner-body">
+              <strong>Update available</strong>
+              <p>
+                v{state.update.latest} is available (you have v{state.update.current}).{' '}
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => void OpenExternal(state.update!.url)}
+                >
+                  Download now
+                </button>
+              </p>
+            </div>
+            <button type="button" className="banner-dismiss" onClick={() => setUpdateDismissed(true)}>
               Dismiss
             </button>
           </div>

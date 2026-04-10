@@ -65,6 +65,9 @@ func (m *Multipass) EnsureInstalled(ctx context.Context) error {
 	case "windows":
 		if executil.LookPath("winget") {
 			_, err := executil.Run(ctx, "winget", "install", "--id", "Canonical.Multipass", "-e", "--accept-source-agreements", "--accept-package-agreements")
+			if err != nil && isWingetAlreadyInstalled(err.Error()) {
+				return nil
+			}
 			return err
 		}
 	}
@@ -346,4 +349,10 @@ func fallbackSnapshotName(value, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func isWingetAlreadyInstalled(msg string) bool {
+	lower := strings.ToLower(msg)
+	return strings.Contains(lower, "already installed") ||
+		strings.Contains(lower, "no available upgrade found")
 }

@@ -9,9 +9,16 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 
 	"github.com/stoicsoft/vpsbox/internal/executil"
 )
+
+func isWingetAlreadyInstalled(msg string) bool {
+	lower := strings.ToLower(msg)
+	return strings.Contains(lower, "already installed") ||
+		strings.Contains(lower, "no available upgrade found")
+}
 
 func installAllPrerequisites(progress func(string)) error {
 	report := func(message string) {
@@ -54,6 +61,9 @@ func installMultipassWindows() error {
 			"--accept-source-agreements",
 			"--accept-package-agreements",
 		)
+		if err != nil && isWingetAlreadyInstalled(err.Error()) {
+			return nil
+		}
 		return err
 	}
 

@@ -14,6 +14,7 @@ type Job = desktopbackend.Job
 type CreateSandboxInput = desktopbackend.CreateSandboxInput
 type UpdateSandboxInput = desktopbackend.UpdateSandboxInput
 type SSHKeys = desktopbackend.SSHKeys
+type UpdateInfo = desktopbackend.UpdateInfo
 
 type DesktopApp struct {
 	ctx     context.Context
@@ -77,6 +78,10 @@ func (a *DesktopApp) ReadSSHKeys(name string) (SSHKeys, error) {
 
 func (a *DesktopApp) RevealKeyFolder(name string) error {
 	return a.backend.RevealKeyFolder(name)
+}
+
+func (a *DesktopApp) CheckForUpdate() UpdateInfo {
+	return a.backend.CheckForUpdate()
 }
 
 func (a *DesktopApp) OpenExternal(url string) {

@@ -19,8 +19,9 @@ type App struct {
 	ctx     context.Context
 	manager *vpsapp.Manager
 
-	mu   sync.Mutex
-	jobs map[string]*Job
+	mu     sync.Mutex
+	jobs   map[string]*Job
+	update *UpdateInfo
 }
 
 type AppState struct {
@@ -29,6 +30,7 @@ type AppState struct {
 	Requirements []Requirement `json:"requirements"`
 	Instances    []Sandbox     `json:"instances"`
 	Jobs         []Job         `json:"jobs"`
+	Update       *UpdateInfo   `json:"update,omitempty"`
 }
 
 type Requirement struct {
@@ -105,6 +107,14 @@ func (a *App) Startup(ctx context.Context) {
 		return
 	}
 	a.manager = manager
+
+	// Check for updates in the background so startup isn't blocked.
+	go func() {
+		info := checkForUpdate()
+		a.mu.Lock()
+		a.update = &info
+		a.mu.Unlock()
+	}()
 }
 
 func (a *App) GetState() (AppState, error) {
@@ -150,12 +160,17 @@ func (a *App) GetState() (AppState, error) {
 		})
 	}
 
+	a.mu.Lock()
+	update := a.update
+	a.mu.Unlock()
+
 	return AppState{
 		AppVersion:   vpsapp.Version,
 		Platform:     runtime.GOOS + "/" + runtime.GOARCH,
 		Requirements: requirements,
 		Instances:    items,
 		Jobs:         a.listJobs(),
+		Update:       update,
 	}, nil
 }
 
@@ -382,6 +397,14 @@ func (a *App) RevealKeyFolder(name string) error {
 	default:
 		return fmt.Errorf("RevealKeyFolder is only implemented on macOS in this desktop build")
 	}
+}
+
+func (a *App) CheckForUpdate() UpdateInfo {
+	info := checkForUpdate()
+	a.mu.Lock()
+	a.update = &info
+	a.mu.Unlock()
+	return info
 }
 
 func (a *App) newJob(kind, target string) *Job {

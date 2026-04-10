@@ -473,6 +473,35 @@ dl {
   color: rgba(146, 64, 14, 0.9);
 }
 
+.banner-update {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.2);
+  color: #1e40af;
+}
+
+.banner-update .banner-body strong {
+  color: #1e40af;
+}
+
+.banner-update .banner-body p {
+  color: rgba(30, 64, 175, 0.85);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+.link-button:hover {
+  color: #1d4ed8;
+}
+
 .banner-dismiss {
   font-size: 12px;
   font-weight: 600;

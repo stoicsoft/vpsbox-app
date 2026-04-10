@@ -72,11 +72,6 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Build app
-        run: |
-          WAILS_BIN="$(go env GOPATH)/bin/wails"
-          "${WAILS_BIN}" build -clean -tags webkit2_41
-
       - name: Extract version
         id: version
         run: |
@@ -90,6 +85,11 @@ jobs:
           VERSION_DASH=${VERSION//./-}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_dash=$VERSION_DASH" >> $GITHUB_OUTPUT
+
+      - name: Build app
+        run: |
+          WAILS_BIN="$(go env GOPATH)/bin/wails"
+          "${WAILS_BIN}" build -clean -tags webkit2_41 -ldflags "-X 'github.com/stoicsoft/vpsbox/internal/app.Version=${{ steps.version.outputs.version }}'"
 
       - name: Package Linux artifacts
         run: |
@@ -143,12 +143,6 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Build app
-        shell: bash
-        run: |
-          WAILS_BIN="$(go env GOPATH)/bin/wails"
-          "${WAILS_BIN}" build -clean -nsis
-
       - name: Extract version
         id: version
         shell: bash
@@ -163,6 +157,12 @@ jobs:
           VERSION_DASH=${VERSION//./-}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_dash=$VERSION_DASH" >> $GITHUB_OUTPUT
+
+      - name: Build app
+        shell: bash
+        run: |
+          WAILS_BIN="$(go env GOPATH)/bin/wails"
+          "${WAILS_BIN}" build -clean -nsis -ldflags "-X 'github.com/stoicsoft/vpsbox/internal/app.Version=${{ steps.version.outputs.version }}'"
 
       - name: Package Windows artifacts
         shell: pwsh
@@ -233,10 +233,24 @@ jobs:
         run: npm ci
         working-directory: frontend
 
+      - name: Extract version
+        id: version
+        run: |
+          if [[ -n "${{ inputs.version }}" ]]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION="0.0.0"
+          fi
+          VERSION_DASH=${VERSION//./-}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_dash=$VERSION_DASH" >> $GITHUB_OUTPUT
+
       - name: Build application
         run: |
           WAILS_BIN="$(go env GOPATH)/bin/wails"
-          "${WAILS_BIN}" build -clean
+          "${WAILS_BIN}" build -clean -ldflags "-X 'github.com/stoicsoft/vpsbox/internal/app.Version=${{ steps.version.outputs.version }}'"
 
       # Import Apple Developer certificate
       - name: Import Code Signing Certificate
@@ -338,19 +352,9 @@ jobs:
         if: always()
         run: security delete-keychain "$KEYCHAIN_PATH" || true
 
-      # Extract version and rename artifacts
       - name: Rename macOS artifacts
-        id: version
         run: |
-          if [[ -n "${{ inputs.version }}" ]]; then
-            VERSION="${{ inputs.version }}"
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/v}
-          else
-            VERSION="0.0.0"
-          fi
-          VERSION_DASH=${VERSION//./-}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION_DASH="${{ steps.version.outputs.version_dash }}"
 
           cd release
 
