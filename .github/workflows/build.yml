@@ -20,23 +20,91 @@ on:
 
 jobs:
   # ============================================
-  # Windows & Linux Builds
+  # Linux Build
   # ============================================
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-24.04
-            platform: linux
-            artifact: linux-build
-            linux_tags: "-tags webkit2_41"
-          - os: windows-2022
-            platform: win
-            artifact: windows-build
-            linux_tags: ""
+  build-linux:
+    runs-on: ubuntu-24.04
 
-    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout desktop repo
+        uses: actions/checkout@v4
+
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        id: apt-cache
+        with:
+          path: ~/apt-cache
+          key: apt-linux-webkit-gtk-${{ runner.os }}-v1
+
+      - name: Install Linux dependencies
+        run: |
+          if [ -d ~/apt-cache ]; then
+            sudo cp -r ~/apt-cache/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          fi
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev
+          mkdir -p ~/apt-cache
+          cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+      - name: Tidy Go modules
+        run: go mod tidy
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build app
+        run: |
+          WAILS_BIN="$(go env GOPATH)/bin/wails"
+          "${WAILS_BIN}" build -clean -tags webkit2_41
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION="0.0.0"
+          fi
+          VERSION_DASH=${VERSION//./-}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_dash=$VERSION_DASH" >> $GITHUB_OUTPUT
+
+      - name: Package Linux artifacts
+        run: |
+          VERSION_DASH="${{ steps.version.outputs.version_dash }}"
+          mkdir -p release
+          tar -czf "release/VPSBox-${VERSION_DASH}-linux-amd64.tar.gz" -C build/bin vpsbox
+          ls -la release/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: release/
+          if-no-files-found: error
+          retention-days: 1
+
+  # ============================================
+  # Windows Build
+  # ============================================
+  build-windows:
+    runs-on: windows-2022
 
     steps:
       - name: Checkout desktop repo
@@ -54,16 +122,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # Linux: Install GTK and WebKit build dependencies
-      - name: Install Linux dependencies
-        if: matrix.platform == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-
-      # Windows: Install NSIS for installer packaging
-      - name: Install NSIS (Windows)
-        if: matrix.platform == 'win'
+      - name: Install NSIS
         run: choco install nsis -y --no-progress
 
       - name: Install Wails CLI
@@ -82,15 +141,8 @@ jobs:
         shell: bash
         run: |
           WAILS_BIN="$(go env GOPATH)/bin/wails"
-          if [[ "${{ matrix.platform }}" == "linux" ]]; then
-            "${WAILS_BIN}" build -clean ${{ matrix.linux_tags }}
-          elif [[ "${{ matrix.platform }}" == "win" ]]; then
-            "${WAILS_BIN}" build -clean -nsis
-          else
-            "${WAILS_BIN}" build -clean
-          fi
+          "${WAILS_BIN}" build -clean -nsis
 
-      # Extract version from tag or default
       - name: Extract version
         id: version
         shell: bash
@@ -103,21 +155,8 @@ jobs:
           VERSION_DASH=${VERSION//./-}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_dash=$VERSION_DASH" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION ($VERSION_DASH)"
 
-      # Rename and collect Linux artifacts
-      - name: Package Linux artifacts
-        if: matrix.platform == 'linux'
-        run: |
-          VERSION_DASH="${{ steps.version.outputs.version_dash }}"
-          mkdir -p release
-          tar -czf "release/VPSBox-${VERSION_DASH}-linux-amd64.tar.gz" -C build/bin vpsbox
-          echo "=== Artifacts ==="
-          ls -la release/
-
-      # Rename and collect Windows artifacts
       - name: Package Windows artifacts
-        if: matrix.platform == 'win'
         shell: pwsh
         run: |
           $versionDash = "${{ steps.version.outputs.version_dash }}"
@@ -149,7 +188,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: windows-build
           path: release/
           if-no-files-found: error
           retention-days: 1
@@ -331,7 +370,7 @@ jobs:
   # Create GitHub Release
   # ============================================
   release:
-    needs: [build, build-macos]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == 'true'
 
@@ -374,7 +413,6 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          repository: stoicsoft/vpsbox-app
           tag_name: v${{ steps.changelog.outputs.version }}
           name: v${{ steps.changelog.outputs.version }}
           draft: true
@@ -383,8 +421,6 @@ jobs:
             artifacts/windows-build/*
             artifacts/linux-build/*
             artifacts/macos-build/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASES_PAT }}
 
       # Delete artifacts after release to free up storage
       - name: Delete artifacts
