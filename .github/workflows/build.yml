@@ -374,7 +374,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          repository: stoicsoft/vpsbox-releases
+          repository: stoicsoft/vpsbox-app
           tag_name: v${{ steps.changelog.outputs.version }}
           name: v${{ steps.changelog.outputs.version }}
           draft: true

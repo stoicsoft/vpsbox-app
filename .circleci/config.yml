@@ -345,7 +345,7 @@ jobs:
 
             # Create draft release on the releases repo
             gh release create "v${VERSION}" \
-              --repo stoicsoft/vpsbox-releases \
+              --repo stoicsoft/vpsbox-app \
               --title "v${VERSION}" \
               --draft \
               --notes "${CHANGELOG:-Release v${VERSION}}" \
