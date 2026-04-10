@@ -27,12 +27,24 @@ func installAllPrerequisites(progress func(string)) error {
 		}
 	}
 
+	// Hyper-V is required for Multipass on Windows. Enable it if missing.
+	if !isHyperVEnabled() {
+		report("Enabling Hyper-V (UAC will prompt for admin — reboot required)")
+		if err := enableHyperV(); err != nil {
+			return fmt.Errorf("Hyper-V is required for Multipass but could not be enabled: %w\n\nPlease enable Hyper-V manually in Windows Features and restart your PC", err)
+		}
+		return fmt.Errorf("Hyper-V has been enabled. Please restart your computer and run setup again")
+	}
+
 	if !executil.LookPath("multipass") {
 		report("Installing Multipass (UAC will prompt for admin)")
 		if err := installMultipassWindows(); err != nil {
 			return err
 		}
 	}
+
+	// Disable the Multipass GUI tray app — VPSBox manages VMs directly.
+	disableMultipassGUI()
 
 	report("Installing mkcert into ~/.vpsbox/bin")
 	if err := installMKCertWindows(); err != nil {
@@ -48,6 +60,30 @@ func installAllPrerequisites(progress func(string)) error {
 
 	report("System packages are installed")
 	return nil
+}
+
+// isHyperVEnabled checks whether the Hyper-V hypervisor service exists.
+func isHyperVEnabled() bool {
+	res, err := executil.Run(context.Background(), "powershell.exe",
+		"-NoProfile", "-NonInteractive", "-Command",
+		"(Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).State",
+	)
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(res.Stdout) == "Enabled"
+}
+
+// enableHyperV enables Hyper-V via DISM with admin privileges.
+func enableHyperV() error {
+	return runAdminCommand("dism.exe /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V /NoRestart")
+}
+
+// disableMultipassGUI turns off the Multipass GUI tray icon autostart.
+func disableMultipassGUI() {
+	if executil.LookPath("multipass") {
+		_, _ = executil.Run(context.Background(), "multipass", "set", "client.gui.autostart=false")
+	}
 }
 
 func installMultipassWindows() error {
