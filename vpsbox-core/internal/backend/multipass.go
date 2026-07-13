@@ -281,9 +281,15 @@ func (m *Multipass) Snapshot(ctx context.Context, name, snapshotName, comment st
 }
 
 func (m *Multipass) Restore(ctx context.Context, name, snapshotName string) error {
-	target := fmt.Sprintf("%s.%s", name, snapshotName)
-	_, err := executil.Run(ctx, "multipass", "restore", target)
+	// VPSBox is non-interactive (CLI jobs and the desktop backend both run
+	// without a TTY). Multipass otherwise prompts before discarding the current
+	// machine state and fails with "Unable to query client for confirmation".
+	_, err := executil.Run(ctx, "multipass", multipassRestoreArgs(name, snapshotName)...)
 	return err
+}
+
+func multipassRestoreArgs(name, snapshotName string) []string {
+	return []string{"restore", "--destructive", fmt.Sprintf("%s.%s", name, snapshotName)}
 }
 
 func (m *Multipass) ListSnapshots(ctx context.Context, name string) ([]SnapshotInfo, error) {

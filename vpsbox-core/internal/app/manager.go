@@ -214,7 +214,7 @@ func (m *Manager) Down(ctx context.Context, name string) (*registry.Instance, er
 	if err := m.store.UpsertInstance(*instance); err != nil {
 		return nil, err
 	}
-	if err := m.syncHosts(); err != nil {
+	if err := ignoreHostsPrivilegeError(m.syncHosts()); err != nil {
 		return nil, err
 	}
 	return instance, nil
@@ -240,7 +240,10 @@ func (m *Manager) Destroy(ctx context.Context, name string, force bool) error {
 	if err := m.store.DeleteInstance(instance.Name); err != nil {
 		return err
 	}
-	return m.syncHosts()
+	if err := m.cleanupInstanceArtifacts(instance.Name); err != nil {
+		return err
+	}
+	return ignoreHostsPrivilegeError(m.syncHosts())
 }
 
 func (m *Manager) List(ctx context.Context) ([]registry.Instance, error) {
@@ -729,6 +732,39 @@ func (m *Manager) syncHosts() error {
 		}
 	}
 	return domain.SyncHosts(m.paths.HostsFilePath, records)
+}
+
+// Lifecycle operations have already changed the VM and registry by the time
+// hosts synchronization runs. A non-interactive CLI or desktop job cannot
+// answer a sudo prompt, so a missing privilege must not turn a successful stop
+// or destroy into a reported failure. Users can still apply the pending local
+// domain entries through the dedicated Fix Local Domains action.
+func ignoreHostsPrivilegeError(err error) error {
+	if errors.Is(err, domain.ErrPrivilegesRequired) {
+		return nil
+	}
+	return err
+}
+
+func (m *Manager) cleanupInstanceArtifacts(name string) error {
+	artifactPaths := []string{
+		m.paths.KeyPath(name),
+		m.paths.PublicKeyPath(name),
+		m.paths.CertPath(name),
+		m.paths.CertKeyPath(name),
+		m.paths.CloudInitPath(name),
+	}
+
+	var cleanupErrors []error
+	for _, artifactPath := range artifactPaths {
+		if err := os.Remove(artifactPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("remove %s: %w", artifactPath, err))
+		}
+	}
+	if err := m.store.DeleteBaseline(name); err != nil {
+		cleanupErrors = append(cleanupErrors, fmt.Errorf("remove checkpoint baseline: %w", err))
+	}
+	return errors.Join(cleanupErrors...)
 }
 
 func (m *Manager) syncHostsWith(instanceName string, record domain.Record) error {
