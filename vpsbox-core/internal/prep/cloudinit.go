@@ -34,7 +34,9 @@ ssh_authorized_keys:
   - {{ .PublicKey }}
 write_files:
   - path: /usr/local/bin/vpsbox-prep.sh
-    permissions: '0755'
+    # Multipass merges this document with vendor data. The explicit YAML tag
+    # prevents that merge from coercing octal-looking permissions to integer 493.
+    permissions: !!str '0755'
     content: |
       #!/usr/bin/env bash
       set -euxo pipefail

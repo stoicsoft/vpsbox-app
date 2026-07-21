@@ -11,7 +11,7 @@ import (
 	"github.com/stoicsoft/vpsbox/internal/config"
 )
 
-const currentVersion = 1
+const currentVersion = 2
 
 type Instance struct {
 	Name             string    `json:"name"`
@@ -36,6 +36,9 @@ type Instance struct {
 	QuickTunnelURL   string    `json:"quick_tunnel_url,omitempty"`
 	CloudInitPath    string    `json:"cloud_init_path,omitempty"`
 	SnapshotsEnabled bool      `json:"snapshots_enabled,omitempty"`
+	DomainBase       string    `json:"domain_base,omitempty"`
+	ScenarioID       string    `json:"scenario_id,omitempty"`
+	ScenarioRole     string    `json:"scenario_role,omitempty"`
 }
 
 type Share struct {

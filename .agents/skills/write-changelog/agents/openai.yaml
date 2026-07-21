@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Changelog"
+  short_description: "Draft VPSBox release notes and social posts"
+  default_prompt: "Use $write-changelog to prepare the next VPSBox release changelog and social posts."

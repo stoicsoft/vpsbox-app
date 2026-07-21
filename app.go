@@ -15,6 +15,8 @@ type CreateSandboxInput = desktopbackend.CreateSandboxInput
 type UpdateSandboxInput = desktopbackend.UpdateSandboxInput
 type SSHKeys = desktopbackend.SSHKeys
 type UpdateInfo = desktopbackend.UpdateInfo
+type ServerLogs = desktopbackend.ServerLogs
+type ServerLogEntry = desktopbackend.ServerLogEntry
 
 type DesktopApp struct {
 	ctx     context.Context
@@ -82,6 +84,10 @@ func (a *DesktopApp) RevealKeyFolder(name string) error {
 
 func (a *DesktopApp) CheckForUpdate() UpdateInfo {
 	return a.backend.CheckForUpdate()
+}
+
+func (a *DesktopApp) GetServerLogs(name string) (ServerLogs, error) {
+	return a.backend.GetServerLogs(name)
 }
 
 func (a *DesktopApp) OpenExternal(url string) {

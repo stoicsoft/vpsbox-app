@@ -1,0 +1,44 @@
+apiVersion: vpsbox.stoicsoft.com/v1alpha1
+kind: Lab
+metadata:
+  name: easypanel-full
+spec:
+  maxParallel: 2
+  instances:
+    - name: stable
+      role: easypanel-stable
+      image: "24.04"
+      resources: { cpus: 4, memoryGB: 6, diskGB: 30 }
+      fixture: easypanel/mimic-stable
+      snapshots: [fresh, seeded-baseline]
+    - name: canary
+      role: easypanel-canary
+      image: "24.04"
+      resources: { cpus: 4, memoryGB: 6, diskGB: 30 }
+      fixture: easypanel/mimic-canary
+      snapshots: [fresh, seeded-baseline]
+    - name: stateful
+      role: easypanel-stateful
+      image: "24.04"
+      resources: { cpus: 4, memoryGB: 6, diskGB: 30 }
+      fixture: easypanel/mimic-stateful
+      snapshots: [fresh, seeded-baseline]
+    - name: generic
+      role: negative-control
+      image: "24.04"
+      resources: { cpus: 2, memoryGB: 2, diskGB: 12 }
+      fixture: generic/swarm-traefik
+      snapshots: [fresh, seeded-baseline]
+    - name: manager
+      role: easypanel-manager
+      image: "24.04"
+      resources: { cpus: 4, memoryGB: 6, diskGB: 30 }
+      fixture: easypanel/mimic
+      snapshots: [fresh, seeded-baseline]
+    - name: worker
+      role: swarm-worker
+      image: "24.04"
+      resources: { cpus: 2, memoryGB: 2, diskGB: 12 }
+      fixture: base/ubuntu-docker
+      joinSwarmOf: manager
+      snapshots: [fresh, seeded-baseline]

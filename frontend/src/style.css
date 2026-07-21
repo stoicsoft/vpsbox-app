@@ -771,6 +771,197 @@ dl {
 }
 
 /* ============================================================================
+   Logs tab — server diagnostics
+   ========================================================================== */
+
+.server-logs {
+  min-width: 0;
+}
+
+.log-toolbar,
+.log-caption,
+.log-actions,
+.log-filters {
+  display: flex;
+  align-items: center;
+}
+
+.log-toolbar,
+.log-caption {
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.log-filters,
+.log-actions {
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.log-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  color: var(--fg-subtle);
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.log-filter:hover,
+.log-filter-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.log-filter span {
+  color: var(--fg-faint);
+  font-size: 11px;
+}
+
+.log-search {
+  width: 180px;
+  height: 30px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 12px;
+  outline: none;
+}
+
+.log-search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.log-caption {
+  color: var(--fg-subtle);
+  font-size: 12px;
+}
+
+.log-caption small {
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+
+.log-table {
+  overflow: auto;
+  max-height: 520px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: 76px 88px 132px minmax(280px, 1fr);
+  align-items: start;
+  min-width: 760px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.log-row:last-child {
+  border-bottom: 0;
+}
+
+.log-row > * {
+  min-width: 0;
+  padding: 9px var(--s-3);
+}
+
+.log-row-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--fg-faint);
+  background: var(--surface-2);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.log-row time,
+.log-source {
+  color: var(--fg-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-row code {
+  padding: 9px var(--s-3);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.log-kind {
+  color: var(--fg-subtle);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.log-kind-network {
+  color: var(--info);
+}
+
+.log-kind-route {
+  color: var(--warning);
+}
+
+.log-kind-docker {
+  color: var(--accent);
+}
+
+.log-level-error code {
+  color: var(--danger);
+}
+
+.log-level-warning code {
+  color: var(--warning);
+}
+
+.log-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  min-height: 180px;
+  color: var(--fg-subtle);
+  font-size: 13px;
+}
+
+.log-loading .spinner {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+.inline-error {
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid rgba(185, 28, 28, 0.2);
+  border-radius: var(--r-sm);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* ============================================================================
    Resources tab — danger zone
    ========================================================================== */
 
@@ -922,6 +1113,14 @@ dl {
   display: flex;
   gap: var(--s-2);
   flex-wrap: wrap;
+}
+
+.update-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.update-checked {
+  color: var(--fg-faint);
 }
 
 /* ============================================================================
@@ -1726,6 +1925,15 @@ dl {
   .head-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .log-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .update-stats {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -3,6 +3,8 @@ import type { FormEvent, ReactNode } from 'react';
 import './style.css';
 import vpsboxIcon from './assets/images/vpsbox-icon.svg';
 import {
+  CheckForUpdate,
+  GetServerLogs,
   GetState,
   OpenExternal,
   OpenShell,
@@ -63,6 +65,21 @@ type UpdateInfo = {
   url: string;
   checkedAt?: string;
   releasedAt?: string;
+  error?: string;
+};
+
+type ServerLogEntry = {
+  id: string;
+  category: 'system' | 'network' | 'route' | 'docker';
+  timestamp?: string;
+  level: string;
+  source: string;
+  message: string;
+};
+
+type ServerLogs = {
+  fetchedAt: string;
+  entries: ServerLogEntry[];
 };
 
 type AppState = {
@@ -75,7 +92,8 @@ type AppState = {
 };
 
 type Section = 'servers' | 'system' | 'activity';
-type DetailTab = 'overview' | 'connect' | 'resources';
+type DetailTab = 'overview' | 'connect' | 'logs' | 'resources';
+type LogCategory = 'all' | ServerLogEntry['category'];
 type StatusVariant = 'running' | 'stopped' | 'pending' | 'error' | 'info';
 
 type EditValues = {
@@ -153,11 +171,19 @@ function formatRelative(iso: string): string {
   return `${Math.round(seconds / 86400)}d ago`;
 }
 
+function formatClockTime(iso: string): string {
+  if (!iso) return 'Now';
+  const value = new Date(iso);
+  if (Number.isNaN(value.getTime())) return iso;
+  return value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 function statusVariant(status: string): StatusVariant {
   switch (status.toLowerCase()) {
     case 'running':
     case 'done':
     case 'ok':
+    case 'up to date':
       return 'running';
     case 'stopped':
       return 'stopped';
@@ -166,6 +192,7 @@ function statusVariant(status: string): StatusVariant {
       return 'error';
     case 'pending':
     case 'starting':
+    case 'update available':
       return 'pending';
     default:
       return 'info';
@@ -741,6 +768,9 @@ function App() {
 
         {bootstrapped && section === 'system' ? (
           <SystemScreen
+            appVersion={state.appVersion}
+            platform={state.platform}
+            update={state.update}
             requirements={state.requirements}
             installJob={installJob}
             installing={Boolean(actionsBusy.install)}
@@ -748,6 +778,8 @@ function App() {
             hasCorePackages={hasCorePackages}
             onInstall={() => runAction('install', () => StartInstallPackages())}
             onFixDomains={() => runAction('domains', () => StartFixLocalDomains())}
+            checkingUpdate={Boolean(actionsBusy['software-update'])}
+            onCheckUpdate={() => runAction('software-update', () => CheckForUpdate())}
           />
         ) : null}
 
@@ -1058,6 +1090,7 @@ function ServersScreen(props: {
         options={[
           { id: 'overview', label: 'Overview' },
           { id: 'connect', label: 'Connect' },
+          { id: 'logs', label: 'Logs' },
           { id: 'resources', label: 'Resources' },
         ]}
       />
@@ -1161,7 +1194,176 @@ function ServersScreen(props: {
           </div>
         </div>
       ) : null}
+
+      {props.detailTab === 'logs' ? <ServerLogsTab instance={selectedInstance} /> : null}
     </section>
+  );
+}
+
+function ServerLogsTab({ instance }: { instance: Sandbox }) {
+  const [logs, setLogs] = useState<ServerLogs | null>(null);
+  const [category, setCategory] = useState<LogCategory>('all');
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const requestID = useRef(0);
+  const inFlight = useRef(false);
+  const isRunning = instance.status.toLowerCase() === 'running';
+
+  const load = useCallback(async () => {
+    if (!isRunning || !instance.hasPrivateKey || inFlight.current) return;
+    inFlight.current = true;
+    const id = ++requestID.current;
+    setLoading(true);
+    try {
+      const result = await GetServerLogs(instance.name);
+      if (requestID.current !== id) return;
+      setLogs(result as unknown as ServerLogs);
+      setLoadError('');
+    } catch (err) {
+      if (requestID.current === id) setLoadError(toMessage(err));
+    } finally {
+      inFlight.current = false;
+      if (requestID.current === id) setLoading(false);
+    }
+  }, [instance.hasPrivateKey, instance.name, isRunning]);
+
+  useEffect(() => {
+    setLogs(null);
+    setLoadError('');
+    setCategory('all');
+    setQuery('');
+    void load();
+    const timer = window.setInterval(() => void load(), 5000);
+    return () => {
+      window.clearInterval(timer);
+      requestID.current += 1;
+    };
+  }, [load]);
+
+  if (!isRunning) {
+    return (
+      <div className="tab-body">
+        <EmptyState
+          title="Start the server to read logs"
+          description="Logs and live network diagnostics are available while the sandbox is running."
+        />
+      </div>
+    );
+  }
+
+  if (!instance.hasPrivateKey) {
+    return (
+      <div className="tab-body">
+        <EmptyState
+          title="An SSH key is required"
+          description="Generate a key in the Connect tab so vpsbox can read diagnostics from the server."
+        />
+      </div>
+    );
+  }
+
+  const categories: { id: LogCategory; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'system', label: 'System' },
+    { id: 'network', label: 'Connections' },
+    { id: 'route', label: 'Routes' },
+    { id: 'docker', label: 'Docker' },
+  ];
+  const normalizedQuery = query.trim().toLowerCase();
+  const entries = (logs?.entries ?? []).filter((entry) => {
+    if (category !== 'all' && entry.category !== category) return false;
+    if (!normalizedQuery) return true;
+    return `${entry.source} ${entry.message} ${entry.level}`.toLowerCase().includes(normalizedQuery);
+  });
+  const countFor = (value: LogCategory) =>
+    value === 'all'
+      ? logs?.entries.length ?? 0
+      : logs?.entries.filter((entry) => entry.category === value).length ?? 0;
+
+  return (
+    <div className="tab-body server-logs">
+      <div className="log-toolbar">
+        <div className="log-filters" role="group" aria-label="Log category">
+          {categories.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`log-filter ${category === item.id ? 'log-filter-active' : ''}`}
+              onClick={() => setCategory(item.id)}
+            >
+              {item.label} <span>{countFor(item.id)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="log-actions">
+          <input
+            className="log-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Filter logs"
+            aria-label="Filter logs"
+          />
+          <Button size="sm" busy={loading} onClick={() => void load()}>
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      <div className="log-caption">
+        <span>
+          System journal, active TCP/UDP sockets, routing table, container output, and recent
+          Docker activity.
+        </span>
+        {logs?.fetchedAt ? <small>Updated {formatClockTime(logs.fetchedAt)}</small> : null}
+      </div>
+
+      {loadError ? (
+        <div className="inline-error" role="alert">
+          {loadError}
+        </div>
+      ) : null}
+
+      {!logs && loading ? (
+        <div className="log-loading" role="status">
+          <div className="spinner" aria-hidden />
+          <span>Reading server diagnostics…</span>
+        </div>
+      ) : null}
+
+      {logs && entries.length === 0 ? (
+        <EmptyState
+          title="No matching entries"
+          description="Try a different category or clear the text filter."
+        />
+      ) : null}
+
+      {entries.length > 0 ? (
+        <div className="log-table" role="table" aria-label="Server logs">
+          <div className="log-row log-row-head" role="row">
+            <span role="columnheader">Time</span>
+            <span role="columnheader">Type</span>
+            <span role="columnheader">Source</span>
+            <span role="columnheader">Message</span>
+          </div>
+          {entries.map((entry) => (
+            <div className={`log-row log-level-${entry.level}`} role="row" key={entry.id}>
+              <time role="cell" dateTime={entry.timestamp}>
+                {formatClockTime(entry.timestamp ?? '')}
+              </time>
+              <span role="cell" className={`log-kind log-kind-${entry.category}`}>
+                {entry.category}
+              </span>
+              <span role="cell" className="log-source" title={entry.source}>
+                {entry.source}
+              </span>
+              <code role="cell">{entry.message}</code>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1170,13 +1372,18 @@ function ServersScreen(props: {
 // ============================================================================
 
 function SystemScreen(props: {
+  appVersion: string;
+  platform: string;
+  update: UpdateInfo | undefined;
   requirements: Requirement[];
   installJob: Job | undefined;
   installing: boolean;
   domainsBusy: boolean;
   hasCorePackages: boolean;
+  checkingUpdate: boolean;
   onInstall: () => void;
   onFixDomains: () => void;
+  onCheckUpdate: () => void;
 }) {
   const byName = new Map<string, Requirement>();
   for (const req of props.requirements) byName.set(req.name, req);
@@ -1193,6 +1400,61 @@ function SystemScreen(props: {
           <p>Install dependencies and fix local hostname routing.</p>
         </div>
       </header>
+
+      <div className="card">
+        <div className="card-head">
+          <h3>Software update</h3>
+          <StatusPill
+            status={
+              props.update?.error
+                ? 'error'
+                : props.update?.available
+                  ? 'update available'
+                  : props.update?.checkedAt
+                    ? 'up to date'
+                    : 'not checked'
+            }
+          />
+        </div>
+        <dl className="stats update-stats">
+          <Stat label="Installed version" value={`v${props.appVersion || '—'}`} />
+          <Stat
+            label="Latest version"
+            value={props.update?.latest ? `v${props.update.latest}` : 'Not checked'}
+          />
+          <Stat label="Platform" value={props.platform || '—'} />
+        </dl>
+        <p className="card-copy">
+          {props.update?.error
+            ? 'The last update check did not finish. Your installed version was not changed.'
+            : props.update?.available
+              ? `VPSBox ${props.update.latest} is ready to download.`
+              : props.update?.checkedAt
+                ? 'VPSBox is up to date.'
+                : 'Check GitHub Releases for a newer desktop build.'}
+          {props.update?.checkedAt ? (
+            <small className="update-checked">
+              {' '}
+              Last checked {formatRelative(props.update.checkedAt)}.
+            </small>
+          ) : null}
+        </p>
+        {props.update?.error ? (
+          <div className="inline-error" role="alert">
+            {props.update.error}
+          </div>
+        ) : null}
+        <div className="card-actions">
+          <Button busy={props.checkingUpdate} onClick={props.onCheckUpdate}>
+            Check for updates
+          </Button>
+          {props.update?.available && props.update.url ? (
+            <Button variant="primary" onClick={() => void OpenExternal(props.update!.url)}>
+              Download v{props.update.latest}
+            </Button>
+          ) : null}
+        </div>
+      </div>
 
       <div className="card">
         <div className="card-head">

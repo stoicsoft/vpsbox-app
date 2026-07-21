@@ -100,3 +100,11 @@ func (p Paths) CloudInitPath(name string) string {
 func (p Paths) ShareLogPath(name string) string {
 	return filepath.Join(p.LogsDir, "share-"+name+".log")
 }
+
+func (p Paths) LabsDir() string {
+	return filepath.Join(p.StateDir, "labs")
+}
+
+func (p Paths) LabStatePath(runID string) string {
+	return filepath.Join(p.LabsDir(), runID+".json")
+}

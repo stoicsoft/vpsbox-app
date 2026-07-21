@@ -10,8 +10,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/stoicsoft/vpsbox/internal/registry"
 	"github.com/spf13/cobra"
+	"github.com/stoicsoft/vpsbox/internal/registry"
 )
 
 func Execute(ctx context.Context) error {
@@ -44,6 +44,7 @@ func Execute(ctx context.Context) error {
 	root.AddCommand(newLogoutCommand(manager))
 	root.AddCommand(newUpgradeCommand(ctx, manager))
 	root.AddCommand(newVersionCommand(manager))
+	root.AddCommand(newLabCommand(ctx, manager))
 
 	// Beginner-friendly commands.
 	root.AddCommand(newCheckpointCommand(ctx, manager))

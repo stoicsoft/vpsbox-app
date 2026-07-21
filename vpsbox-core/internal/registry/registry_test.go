@@ -27,6 +27,9 @@ func TestStoreRoundTrip(t *testing.T) {
 		PrivateKeyPath: "/tmp/dev-1",
 		Image:          "24.04",
 		CreatedAt:      time.Now().UTC(),
+		DomainBase:     "192-168-64-4.sslip.io",
+		ScenarioID:     "migration-run",
+		ScenarioRole:   "easypanel-source",
 	}
 	if err := store.UpsertInstance(instance); err != nil {
 		t.Fatal(err)
@@ -36,7 +39,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Name != instance.Name || got.Host != instance.Host {
+	if got.Name != instance.Name || got.Host != instance.Host || got.DomainBase != instance.DomainBase || got.ScenarioID != instance.ScenarioID {
 		t.Fatalf("unexpected instance: %#v", got)
 	}
 }

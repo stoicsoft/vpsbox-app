@@ -15,6 +15,8 @@ Server Compass should read `~/.vpsbox/instances.json`. Each record contains:
 - `domain_base`
 - `cert_path`
 - `cert_key_path`
+- `scenario_id`
+- `scenario_role`
 
 ## Intended SC changes
 
@@ -36,3 +38,5 @@ vpsbox export dev-1
 ```
 
 Paste the exported JSON into the Server Compass import flow or use the printed fields manually.
+
+For a reproducible multi-VPS migration lab, use `vpsbox lab export RUN_ID`. It returns the same connection contract for every VM in the run, including the exact scenario role. Server Compass must still treat each entry as a normal SSH server; VPSBox is development test infrastructure, not a production migration dependency.

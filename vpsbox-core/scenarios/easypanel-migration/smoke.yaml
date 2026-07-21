@@ -1,0 +1,18 @@
+apiVersion: vpsbox.stoicsoft.com/v1alpha1
+kind: Lab
+metadata:
+  name: easypanel-smoke
+spec:
+  maxParallel: 1
+  instances:
+    - name: stable
+      role: easypanel-source
+      image: "24.04"
+      resources:
+        cpus: 4
+        memoryGB: 6
+        diskGB: 30
+      fixture: easypanel/mimic-stable
+      snapshots:
+        - fresh
+        - seeded-baseline

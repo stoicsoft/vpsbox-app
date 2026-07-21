@@ -110,7 +110,7 @@ func (a *App) Startup(ctx context.Context) {
 
 	// Check for updates in the background so startup isn't blocked.
 	go func() {
-		info := checkForUpdate()
+		info := checkForUpdate(false)
 		a.mu.Lock()
 		a.update = &info
 		a.mu.Unlock()
@@ -400,7 +400,7 @@ func (a *App) RevealKeyFolder(name string) error {
 }
 
 func (a *App) CheckForUpdate() UpdateInfo {
-	info := checkForUpdate()
+	info := checkForUpdate(true)
 	a.mu.Lock()
 	a.update = &info
 	a.mu.Unlock()

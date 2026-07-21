@@ -35,6 +35,14 @@ func NamesForInstance(name string) Names {
 	}
 }
 
+func DomainBaseForIP(ip string) string {
+	parsed := net.ParseIP(ip)
+	if parsed == nil || parsed.To4() == nil {
+		return ""
+	}
+	return strings.ReplaceAll(parsed.To4().String(), ".", "-") + ".sslip.io"
+}
+
 func ValidateIP(ip string) error {
 	if parsed := net.ParseIP(ip); parsed == nil {
 		return fmt.Errorf("invalid IP %q", ip)

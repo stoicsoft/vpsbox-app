@@ -250,6 +250,24 @@ vpsbox upgrade
 vpsbox version
 ```
 
+## Reproducible migration labs
+
+VPSBox includes strict, versioned lab manifests for local EasyPanel migration testing. Lab state is stored under the configured `VPSBOX_HOME`, and every VM is tagged with an exact scenario/run owner.
+
+```bash
+vpsbox lab validate --file scenarios/easypanel-migration/smoke.yaml
+vpsbox lab apply --file scenarios/easypanel-migration/smoke.yaml --run-id ep-smoke-1
+vpsbox lab status ep-smoke-1
+vpsbox lab export ep-smoke-1
+vpsbox lab snapshot ep-smoke-1 --name before-failure-test
+vpsbox lab reset ep-smoke-1 --snapshot seeded-baseline
+vpsbox lab destroy ep-smoke-1 --force
+```
+
+The committed `smoke`, `compatibility`, and `full` profiles use repository-owned fixture IDs rather than arbitrary manifest shell commands. The mimic fixtures create Docker Swarm/EasyPanel-shaped services with synthetic data only. They are intended for adapter, staging, failure, and rollback tests; they are not proof of compatibility with a particular real EasyPanel release.
+
+`lab destroy` requires both an exact run ID and `--force`. It refuses to delete a VM whose registry ownership does not match the lab run.
+
 ## How it works
 
 1. `vpsbox up` detects a VM backend, installs Multipass if needed, generates an SSH key, renders cloud-init, and launches Ubuntu.

@@ -378,6 +378,11 @@ func (m *Manager) Export(ctx context.Context, name, format string) (string, erro
 			"auth_type":        "key",
 			"private_key_path": instance.PrivateKeyPath,
 			"labels":           instance.Labels,
+			"domain_base":      instance.DomainBase,
+			"cert_path":        instance.CertPath,
+			"cert_key_path":    instance.CertKeyPath,
+			"scenario_id":      instance.ScenarioID,
+			"scenario_role":    instance.ScenarioRole,
 		}, "", "  ")
 		if err != nil {
 			return "", err
@@ -391,6 +396,7 @@ func (m *Manager) Export(ctx context.Context, name, format string) (string, erro
 			"export VPSBOX_PORT=22",
 			"export VPSBOX_USER=" + instance.Username,
 			"export VPSBOX_PRIVATE_KEY=" + instance.PrivateKeyPath,
+			"export VPSBOX_DOMAIN_BASE=" + instance.DomainBase,
 		}
 		return strings.Join(lines, "\n"), nil
 	default:
@@ -695,15 +701,20 @@ func (m *Manager) refreshInstanceWithTLSPreference(ctx context.Context, instance
 		names := domain.NamesForInstance(instance.Name)
 		instance.Host = ip
 		instance.Hostname = names.Hostname
+		instance.DomainBase = domain.DomainBaseForIP(ip)
 
 		if err := m.syncHostsWith(instance.Name, domain.Record{Host: names.Hostname, IP: ip}); err != nil && !errors.Is(err, domain.ErrPrivilegesRequired) {
 			return nil, err
 		}
 
-		cert, err := m.tls.EnsureCertificate(ctx, m.paths.CertPath(instance.Name), m.paths.CertKeyPath(instance.Name), []string{
+		certificateNames := []string{
 			names.Hostname,
 			"*." + names.Hostname,
-		}, preferSelfSigned)
+		}
+		if instance.DomainBase != "" {
+			certificateNames = append(certificateNames, instance.DomainBase, "*."+instance.DomainBase)
+		}
+		cert, err := m.tls.EnsureCertificate(ctx, m.paths.CertPath(instance.Name), m.paths.CertKeyPath(instance.Name), certificateNames, preferSelfSigned)
 		if err != nil {
 			return nil, err
 		}

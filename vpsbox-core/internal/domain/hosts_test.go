@@ -22,3 +22,12 @@ func TestNamesForInstance(t *testing.T) {
 		t.Fatalf("unexpected hostname: %s", names.Hostname)
 	}
 }
+
+func TestDomainBaseForIP(t *testing.T) {
+	if got := DomainBaseForIP("192.168.64.10"); got != "192-168-64-10.sslip.io" {
+		t.Fatalf("unexpected domain base: %s", got)
+	}
+	if got := DomainBaseForIP("not-an-ip"); got != "" {
+		t.Fatalf("expected empty invalid domain base, got %s", got)
+	}
+}

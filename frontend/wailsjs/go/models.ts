@@ -1,5 +1,29 @@
 export namespace desktopbackend {
 	
+	export class UpdateInfo {
+	    available: boolean;
+	    current: string;
+	    latest: string;
+	    url: string;
+	    checkedAt?: string;
+	    releasedAt?: string;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.current = source["current"];
+	        this.latest = source["latest"];
+	        this.url = source["url"];
+	        this.checkedAt = source["checkedAt"];
+	        this.releasedAt = source["releasedAt"];
+	        this.error = source["error"];
+	    }
+	}
 	export class Job {
 	    id: string;
 	    kind: string;
@@ -86,6 +110,7 @@ export namespace desktopbackend {
 	    requirements: Requirement[];
 	    instances: Sandbox[];
 	    jobs: Job[];
+	    update?: UpdateInfo;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppState(source);
@@ -98,6 +123,7 @@ export namespace desktopbackend {
 	        this.requirements = this.convertValues(source["requirements"], Requirement);
 	        this.instances = this.convertValues(source["instances"], Sandbox);
 	        this.jobs = this.convertValues(source["jobs"], Job);
+	        this.update = this.convertValues(source["update"], UpdateInfo);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -155,6 +181,61 @@ export namespace desktopbackend {
 	    }
 	}
 	
+	export class ServerLogEntry {
+	    id: string;
+	    category: string;
+	    timestamp?: string;
+	    level: string;
+	    source: string;
+	    message: string;
+
+	    static createFrom(source: any = {}) {
+	        return new ServerLogEntry(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.category = source["category"];
+	        this.timestamp = source["timestamp"];
+	        this.level = source["level"];
+	        this.source = source["source"];
+	        this.message = source["message"];
+	    }
+	}
+	export class ServerLogs {
+	    fetchedAt: string;
+	    entries: ServerLogEntry[];
+
+	    static createFrom(source: any = {}) {
+	        return new ServerLogs(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fetchedAt = source["fetchedAt"];
+	        this.entries = this.convertValues(source["entries"], ServerLogEntry);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
 	export class UpdateSandboxInput {
 	    name: string;
 	    cpus: number;

@@ -25,6 +25,7 @@ type UpdateInfo struct {
 	URL        string `json:"url"`
 	CheckedAt  string `json:"checkedAt,omitempty"`
 	ReleasedAt string `json:"releasedAt,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 type updateCache struct {
@@ -35,11 +36,11 @@ type updateCache struct {
 
 var cachedUpdate updateCache
 
-func checkForUpdate() UpdateInfo {
+func checkForUpdate(force bool) UpdateInfo {
 	cachedUpdate.mu.Lock()
 	defer cachedUpdate.mu.Unlock()
 
-	if cachedUpdate.info != nil && time.Since(cachedUpdate.checkedAt) < updateCheckPeriod {
+	if !force && cachedUpdate.info != nil && time.Since(cachedUpdate.checkedAt) < updateCheckPeriod {
 		return *cachedUpdate.info
 	}
 
@@ -55,19 +56,19 @@ func fetchUpdateInfo() UpdateInfo {
 	req, err := http.NewRequest(http.MethodGet,
 		fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", updateOwner, updateRepo), nil)
 	if err != nil {
-		return UpdateInfo{Current: current}
+		return updateError(current, err)
 	}
 	req.Header.Set("User-Agent", "vpsbox-desktop")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return UpdateInfo{Current: current}
+		return updateError(current, fmt.Errorf("could not reach GitHub: %w", err))
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		return UpdateInfo{Current: current}
+		return updateError(current, fmt.Errorf("GitHub returned %s", resp.Status))
 	}
 
 	var release struct {
@@ -76,10 +77,13 @@ func fetchUpdateInfo() UpdateInfo {
 		PublishedAt string `json:"published_at"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return UpdateInfo{Current: current}
+		return updateError(current, fmt.Errorf("could not read release information: %w", err))
 	}
 
 	latest := strings.TrimPrefix(release.TagName, "v")
+	if parseSemver(latest) == nil {
+		return updateError(current, fmt.Errorf("release %q does not contain a valid version", release.TagName))
+	}
 
 	return UpdateInfo{
 		Available:  isNewer(latest, current),
@@ -88,6 +92,14 @@ func fetchUpdateInfo() UpdateInfo {
 		URL:        release.HTMLURL,
 		CheckedAt:  time.Now().UTC().Format(time.RFC3339),
 		ReleasedAt: release.PublishedAt,
+	}
+}
+
+func updateError(current string, err error) UpdateInfo {
+	return UpdateInfo{
+		Current:   current,
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+		Error:     err.Error(),
 	}
 }
 
