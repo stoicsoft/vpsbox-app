@@ -9,5 +9,9 @@
   "author": {
     "name": "Kai Builder",
     "email": "vankhoa0603@gmail.com"
+  },
+  "info": {
+    "productName": "vpsbox",
+    "productVersion": "1.2.0"
   }
 }
