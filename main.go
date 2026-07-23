@@ -8,6 +8,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 )
 
 //go:embed all:frontend/dist
@@ -42,7 +43,14 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 248, G: 250, B: 252, A: 1},
+		// The frontend draws its own unified toolbar, so on macOS we hide the
+		// system title bar and inset the traffic lights over it. The toolbar's
+		// lead cell reserves 76px for them (see .app-mac .toolbar-lead).
+		Mac: &mac.Options{
+			TitleBar:   mac.TitleBarHiddenInset(),
+			Appearance: mac.DefaultAppearance,
+		},
+		BackgroundColour: &options.RGBA{R: 236, G: 236, B: 238, A: 1},
 		OnStartup:        app.startup,
 		Bind: []interface{}{
 			app,
