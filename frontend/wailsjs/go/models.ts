@@ -8,11 +8,11 @@ export namespace desktopbackend {
 	    checkedAt?: string;
 	    releasedAt?: string;
 	    error?: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new UpdateInfo(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.available = source["available"];
@@ -188,11 +188,11 @@ export namespace desktopbackend {
 	    level: string;
 	    source: string;
 	    message: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServerLogEntry(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -206,17 +206,17 @@ export namespace desktopbackend {
 	export class ServerLogs {
 	    fetchedAt: string;
 	    entries: ServerLogEntry[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServerLogs(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.fetchedAt = source["fetchedAt"];
 	        this.entries = this.convertValues(source["entries"], ServerLogEntry);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -235,7 +235,7 @@ export namespace desktopbackend {
 		    return a;
 		}
 	}
-
+	
 	export class UpdateSandboxInput {
 	    name: string;
 	    cpus: number;
