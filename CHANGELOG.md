@@ -1,5 +1,25 @@
 # Changelog
 
+# [1.2.0] - Native Redesign and Whole-App Zoom
+
+## New Features
+
+- **A redesigned, native interface** — VPSBox now reads like a Mac developer tool. A unified toolbar doubles as the title bar, your servers live in a source list, connection details are laid out as inspector rows, and a status bar keeps server counts, the VM backend, and any running work in view.
+- **Dark mode** — The whole app follows your system appearance and switches between light and dark automatically.
+- **Scale the entire app** — Zoom from 80% to 160% with ⌘+ and ⌘− (Ctrl on Windows and Linux), reset with ⌘0, or use the stepper at the right of the status bar. Text, icons, tables, and spacing scale together, and your setting is remembered the next time you open VPSBox.
+
+## Improvements
+
+- **Read logs like a traffic list** — Entries are color-coded by category (system, connections, routes, Docker), warnings and errors are flagged in the margin, and the table header stays put while you scroll.
+- **See server state at a glance** — Every server in the sidebar carries a status light: green while running, amber and pulsing while it starts, grey when stopped.
+- **Scan connection details faster** — Hostnames, IP addresses, SSH users, and key paths are set in a monospace face and aligned in columns, so addresses and paths are easier to read, compare, and select.
+- **Keep your place while you work** — Creating, resizing, and deleting a server now open as sheets that drop from the toolbar, leaving the server you were looking at visible behind them.
+- **Clearer status wording** — Host packages and local hostnames report "Ready", "Configured", or "2 of 3" instead of borrowing server lifecycle words like "Running".
+
+## Bug Fixes
+
+- Fixed **dialogs not closing from the keyboard** — Pressing Escape now dismisses any open sheet.
+
 # [1.1.0] - Labs and Live Diagnostics
 
 ## New Features
