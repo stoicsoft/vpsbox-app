@@ -6,12 +6,20 @@ export function CheckForUpdate() {
   return window['go']['main']['DesktopApp']['CheckForUpdate']();
 }
 
+export function GetServerDiff(arg1) {
+  return window['go']['main']['DesktopApp']['GetServerDiff'](arg1);
+}
+
 export function GetServerLogs(arg1) {
   return window['go']['main']['DesktopApp']['GetServerLogs'](arg1);
 }
 
 export function GetState() {
   return window['go']['main']['DesktopApp']['GetState']();
+}
+
+export function ListSnapshots(arg1) {
+  return window['go']['main']['DesktopApp']['ListSnapshots'](arg1);
 }
 
 export function OpenExternal(arg1) {
@@ -30,8 +38,16 @@ export function RevealKeyFolder(arg1) {
   return window['go']['main']['DesktopApp']['RevealKeyFolder'](arg1);
 }
 
+export function StartCheckpoint(arg1, arg2) {
+  return window['go']['main']['DesktopApp']['StartCheckpoint'](arg1, arg2);
+}
+
 export function StartCreateSandbox(arg1) {
   return window['go']['main']['DesktopApp']['StartCreateSandbox'](arg1);
+}
+
+export function StartDeleteSnapshot(arg1, arg2) {
+  return window['go']['main']['DesktopApp']['StartDeleteSnapshot'](arg1, arg2);
 }
 
 export function StartDestroySandbox(arg1) {
@@ -48,6 +64,10 @@ export function StartGenerateSSHKey(arg1) {
 
 export function StartInstallPackages() {
   return window['go']['main']['DesktopApp']['StartInstallPackages']();
+}
+
+export function StartRestoreSnapshot(arg1, arg2) {
+  return window['go']['main']['DesktopApp']['StartRestoreSnapshot'](arg1, arg2);
 }
 
 export function StartStartSandbox(arg1) {

@@ -683,6 +683,9 @@ pre {
 }
 
 .segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   height: 22px;
   padding: 0 11px;
   border-radius: var(--r-2);
@@ -690,6 +693,11 @@ pre {
   color: var(--ink-2);
   white-space: nowrap;
   transition: background 80ms ease, color 80ms ease;
+}
+
+.segment svg {
+  flex: none;
+  opacity: 0.75;
 }
 
 .segment:hover:not(.segment-on) {
@@ -701,6 +709,10 @@ pre {
   color: var(--ink);
   font-weight: 550;
   box-shadow: var(--shadow-rest);
+}
+
+.segment-on svg {
+  opacity: 1;
 }
 
 .tabbar {
@@ -1355,6 +1367,142 @@ pre {
 .tag-docker {
   color: var(--calm);
   background: var(--calm-wash);
+}
+
+/* Diff groups reuse the log tag palette so a category keeps one color. */
+.tag-package {
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.tag-service {
+  color: var(--violet);
+  background: var(--violet-wash);
+}
+
+.tag-port {
+  color: var(--calm);
+  background: var(--calm-wash);
+}
+
+.tag-file {
+  color: var(--ink-2);
+  background: var(--select-idle);
+}
+
+/* ============================================================================
+   Snapshots — checkpoint controls and the change list
+   ========================================================================== */
+
+.ckpt-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ckpt-name {
+  flex: 1;
+  min-width: 150px;
+}
+
+.ckpt-hint {
+  margin-top: 6px;
+}
+
+/* Inspector bodies are borderless rows; blocks that replace a row need their
+   own padding to sit on the same rhythm. */
+.pad-blank {
+  padding: 10px 11px 12px;
+}
+
+.pad-blank p {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.diffbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--content-alt);
+}
+
+.diffbar .search {
+  max-width: 180px;
+}
+
+.difftable {
+  max-height: 420px;
+  overflow: auto;
+  user-select: text;
+}
+
+.diffrow {
+  display: grid;
+  grid-template-columns: 72px 74px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 11px 4px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  border-left: 3px solid transparent;
+  font-size: 11.5px;
+}
+
+.diffrow:last-child {
+  border-bottom: 0;
+}
+
+.diffrow:nth-child(even) {
+  background: var(--content-alt);
+}
+
+.diffrow:hover {
+  background: var(--accent-wash);
+}
+
+.diffrow code {
+  font-family: var(--mono);
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.45;
+}
+
+.diff-kind {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.diff-added {
+  border-left-color: var(--ok);
+}
+
+.diff-added .diff-kind {
+  color: var(--ok);
+}
+
+.diff-removed {
+  border-left-color: var(--bad);
+}
+
+.diff-removed .diff-kind {
+  color: var(--bad);
+}
+
+.diff-modified {
+  border-left-color: var(--warn);
+}
+
+.diff-modified .diff-kind {
+  color: var(--warn);
 }
 
 /* ============================================================================

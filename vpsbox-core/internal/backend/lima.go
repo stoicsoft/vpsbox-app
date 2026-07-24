@@ -88,3 +88,7 @@ func (l *Lima) Restore(context.Context, string, string) error {
 func (l *Lima) ListSnapshots(context.Context, string) ([]SnapshotInfo, error) {
 	return nil, ErrUnsupported
 }
+
+func (l *Lima) DeleteSnapshot(context.Context, string, string) error {
+	return ErrUnsupported
+}

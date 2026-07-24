@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stoicsoft/vpsbox/internal/registry"
 	"github.com/spf13/cobra"
+	"github.com/stoicsoft/vpsbox/internal/backend"
+	"github.com/stoicsoft/vpsbox/internal/registry"
 )
 
 const checkpointPrefix = "checkpoint-"
@@ -17,20 +18,17 @@ const checkpointPrefix = "checkpoint-"
 // Checkpoint takes a snapshot of the VM AND captures a baseline of in-VM
 // state (packages, services, listening ports, /etc file timestamps) so the
 // user can later see what changed (`vpsbox diff`) or roll back (`vpsbox undo`).
+//
+// The sandbox has to be running: the backend can only snapshot a stopped VM, so
+// Snapshot stops and restarts it, and the baseline capture that follows needs a
+// live SSH connection.
 func (m *Manager) Checkpoint(ctx context.Context, name, label string) (*registry.Baseline, error) {
-	instance, err := m.requireInstance(name)
+	instance, err := m.requireRunningInstance(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	if err := m.ensureBackend(ctx); err != nil {
-		return nil, err
-	}
 
-	if label == "" {
-		label = checkpointPrefix + time.Now().UTC().Format("20060102-150405")
-	} else if !strings.HasPrefix(label, checkpointPrefix) {
-		label = checkpointPrefix + label
-	}
+	label = checkpointLabel(label)
 
 	if err := m.Snapshot(ctx, instance.Name, label, "vpsbox checkpoint"); err != nil {
 		return nil, err
@@ -48,9 +46,25 @@ func (m *Manager) Checkpoint(ctx context.Context, name, label string) (*registry
 	return baseline, nil
 }
 
-// Undo restores the most recent checkpoint snapshot. Returns the restored
-// instance and the snapshot name that was used.
-func (m *Manager) Undo(ctx context.Context, name string) (*registry.Instance, string, error) {
+// checkpointLabel normalizes a user-supplied label, defaulting to a timestamp
+// and making sure the checkpoint prefix Undo looks for is present.
+func checkpointLabel(label string) string {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return checkpointPrefix + time.Now().UTC().Format("20060102-150405")
+	}
+	if strings.HasPrefix(label, checkpointPrefix) {
+		return label
+	}
+	return checkpointPrefix + label
+}
+
+// RestoreCheckpoint restores a snapshot and re-captures the baseline against
+// the state the sandbox was actually rolled back to. The baseline is a single
+// file per instance, so without this it keeps describing the newest checkpoint
+// and a diff taken after restoring an older snapshot reports changes that never
+// happened. An empty snapshot name restores the most recent checkpoint.
+func (m *Manager) RestoreCheckpoint(ctx context.Context, name, snapshot string) (*registry.Instance, string, error) {
 	instance, err := m.requireInstance(name)
 	if err != nil {
 		return nil, "", err
@@ -59,25 +73,117 @@ func (m *Manager) Undo(ctx context.Context, name string) (*registry.Instance, st
 		return nil, "", err
 	}
 
-	snapshots, err := m.backend.ListSnapshots(ctx, instance.Name)
-	if err != nil {
-		return nil, "", err
+	snapshot = strings.TrimSpace(snapshot)
+	if snapshot == "" {
+		snapshot, err = m.latestCheckpoint(ctx, instance.Name)
+		if err != nil {
+			return nil, "", err
+		}
 	}
-	var latest string
+
+	refreshed, err := m.Reset(ctx, instance.Name, snapshot)
+	if err != nil {
+		return nil, snapshot, err
+	}
+
+	if _, err := m.captureBaseline(ctx, refreshed, snapshot); err != nil {
+		return refreshed, snapshot, fmt.Errorf("restored %s but baseline capture failed: %w", snapshot, err)
+	}
+	return refreshed, snapshot, nil
+}
+
+// Undo restores the most recent checkpoint snapshot. Returns the restored
+// instance and the snapshot name that was used.
+func (m *Manager) Undo(ctx context.Context, name string) (*registry.Instance, string, error) {
+	return m.RestoreCheckpoint(ctx, name, "")
+}
+
+// latestCheckpoint returns the newest checkpoint-prefixed snapshot for an
+// instance, ignoring snapshots taken by other features (labs, manual saves).
+func (m *Manager) latestCheckpoint(ctx context.Context, instanceName string) (string, error) {
+	snapshots, err := m.backend.ListSnapshots(ctx, instanceName)
+	if err != nil {
+		return "", err
+	}
+	latest := ""
 	for _, s := range snapshots {
 		if strings.HasPrefix(s.Name, checkpointPrefix) {
 			latest = s.Name
 		}
 	}
 	if latest == "" {
-		return nil, "", errors.New("no checkpoints found — create one with `vpsbox checkpoint`")
+		return "", errors.New("no checkpoints found — create one with `vpsbox checkpoint`")
+	}
+	return latest, nil
+}
+
+// DeleteSnapshot removes a saved snapshot and reclaims its disk space. If the
+// deleted snapshot is the one the diff baseline describes, the baseline goes
+// with it — otherwise a later diff would be measured against a point the
+// sandbox can no longer be restored to.
+func (m *Manager) DeleteSnapshot(ctx context.Context, name, snapshot string) error {
+	instance, err := m.requireInstance(name)
+	if err != nil {
+		return err
+	}
+	if err := m.ensureBackend(ctx); err != nil {
+		return err
 	}
 
-	refreshed, err := m.Reset(ctx, instance.Name, latest)
-	if err != nil {
-		return nil, latest, err
+	snapshot = strings.TrimSpace(snapshot)
+	if snapshot == "" {
+		return errors.New("snapshot name is required")
 	}
-	return refreshed, latest, nil
+
+	if err := m.backend.DeleteSnapshot(ctx, instance.Name, snapshot); err != nil {
+		return err
+	}
+
+	baseline, err := m.store.LoadBaseline(instance.Name)
+	if err != nil {
+		return err
+	}
+	if baseline != nil && baseline.Checkpoint == snapshot {
+		return m.store.DeleteBaseline(instance.Name)
+	}
+	return nil
+}
+
+// CheckpointBaseline reports the saved baseline for an instance, or nil when no
+// checkpoint has been taken yet. Callers use it to tell "no checkpoint" apart
+// from "checkpoint exists and nothing changed" without opening an SSH session.
+func (m *Manager) CheckpointBaseline(name string) (*registry.Baseline, error) {
+	instance, err := m.requireInstance(name)
+	if err != nil {
+		return nil, err
+	}
+	return m.store.LoadBaseline(instance.Name)
+}
+
+// requireRunningInstance loads an instance and confirms the VM is up, with its
+// address refreshed from the backend. Callers that need SSH must go through
+// here: the refresh helpers poll for up to 20 minutes before giving up, so a
+// stopped sandbox has to fail fast instead of hanging the caller.
+func (m *Manager) requireRunningInstance(ctx context.Context, name string) (*registry.Instance, error) {
+	instance, err := m.requireInstance(name)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.ensureBackend(ctx); err != nil {
+		return nil, err
+	}
+	info, err := m.backend.Info(ctx, instance.Name)
+	if err != nil {
+		return nil, err
+	}
+	applyBackendInfo(instance, *info)
+	if !strings.EqualFold(instance.Status, string(backend.StatusRunning)) {
+		return nil, fmt.Errorf("%s is not running — start it first", instance.Name)
+	}
+	if instance.Host == "" {
+		return nil, fmt.Errorf("%s has no address yet — wait for it to finish starting", instance.Name)
+	}
+	return instance, nil
 }
 
 // Panic is the friendly alias for Undo.
@@ -88,7 +194,7 @@ func (m *Manager) Panic(ctx context.Context, name string) (*registry.Instance, s
 // Diff captures the current VM state and compares it to the last saved
 // checkpoint baseline.
 func (m *Manager) Diff(ctx context.Context, name string) (*BaselineDiff, error) {
-	instance, err := m.Info(ctx, name)
+	instance, err := m.requireRunningInstance(ctx, name)
 	if err != nil {
 		return nil, err
 	}

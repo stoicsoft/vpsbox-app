@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -34,6 +35,7 @@ func Execute(ctx context.Context) error {
 	root.AddCommand(newSnapshotCommand(ctx, manager))
 	root.AddCommand(newResetCommand(ctx, manager))
 	root.AddCommand(newSnapshotsCommand(ctx, manager))
+	root.AddCommand(newUnsnapshotCommand(ctx, manager))
 	root.AddCommand(newExportCommand(ctx, manager))
 	root.AddCommand(newDoctorCommand(ctx, manager))
 	root.AddCommand(newUICommand(ctx, manager))
@@ -240,15 +242,40 @@ func newResetCommand(ctx context.Context, manager *Manager) *cobra.Command {
 		Short: "Restore an instance from a snapshot",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			instance, err := manager.Reset(ctx, firstArg(args), snapshotName)
+			// RestoreCheckpoint rather than Reset: it re-points the diff
+			// baseline at the snapshot that was actually restored, so a later
+			// `vpsbox diff` measures from here instead of from a checkpoint the
+			// sandbox has been rolled away from.
+			instance, restored, err := manager.RestoreCheckpoint(ctx, firstArg(args), snapshotName)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("✓ Restored %s\n", instance.Name)
+			fmt.Printf("✓ Restored %s from %s\n", instance.Name, restored)
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&snapshotName, "snapshot", "", "snapshot name")
+	return cmd
+}
+
+func newUnsnapshotCommand(ctx context.Context, manager *Manager) *cobra.Command {
+	var snapshotName string
+	cmd := &cobra.Command{
+		Use:   "unsnapshot [name]",
+		Short: "Delete a saved snapshot and reclaim its disk space",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if snapshotName == "" {
+				return errors.New("--snapshot is required (see `vpsbox snapshots`)")
+			}
+			if err := manager.DeleteSnapshot(ctx, firstArg(args), snapshotName); err != nil {
+				return err
+			}
+			fmt.Printf("✓ Snapshot %s deleted\n", snapshotName)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&snapshotName, "snapshot", "", "snapshot name to delete")
 	return cmd
 }
 

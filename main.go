@@ -49,7 +49,9 @@ func main() {
 		Mac: &mac.Options{
 			TitleBar:   mac.TitleBarHiddenInset(),
 			Appearance: mac.DefaultAppearance,
+			About:      aboutInfo(),
 		},
+		Menu:             app.applicationMenu(),
 		BackgroundColour: &options.RGBA{R: 236, G: 236, B: 238, A: 1},
 		OnStartup:        app.startup,
 		Bind: []interface{}{

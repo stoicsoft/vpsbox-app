@@ -74,4 +74,5 @@ type Backend interface {
 	Snapshot(context.Context, string, string, string) error
 	Restore(context.Context, string, string) error
 	ListSnapshots(context.Context, string) ([]SnapshotInfo, error)
+	DeleteSnapshot(context.Context, string, string) error
 }

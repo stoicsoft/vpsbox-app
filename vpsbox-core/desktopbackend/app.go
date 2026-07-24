@@ -93,6 +93,12 @@ func New() *App {
 	}
 }
 
+// Version is the build version of the app, for callers (such as the native
+// menu bar) that need it before a Manager exists.
+func Version() string {
+	return vpsapp.Version
+}
+
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	manager, err := vpsapp.NewManager(ctx)

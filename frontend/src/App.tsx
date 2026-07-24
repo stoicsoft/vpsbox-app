@@ -4,17 +4,22 @@ import './style.css';
 import vpsboxIcon from './assets/images/vpsbox-icon.svg';
 import {
   CheckForUpdate,
+  GetServerDiff,
   GetServerLogs,
   GetState,
+  ListSnapshots,
   OpenExternal,
   OpenShell,
   ReadSSHKeys,
   RevealKeyFolder,
+  StartCheckpoint,
   StartCreateSandbox,
+  StartDeleteSnapshot,
   StartDestroySandbox,
   StartFixLocalDomains,
   StartGenerateSSHKey,
   StartInstallPackages,
+  StartRestoreSnapshot,
   StartStartSandbox,
   StartStopSandbox,
   StartUpdateSandbox,
@@ -82,6 +87,37 @@ type ServerLogs = {
   entries: ServerLogEntry[];
 };
 
+type SnapshotEntry = {
+  name: string;
+  label: string;
+  comment: string;
+  parent: string;
+  checkpoint: boolean;
+  latest: boolean;
+  current: boolean;
+};
+
+type SnapshotList = {
+  entries: SnapshotEntry[];
+  hasBaseline: boolean;
+  baselineLabel?: string;
+  baselineAt?: string;
+};
+
+type DiffEntry = {
+  kind: 'added' | 'removed' | 'modified';
+  group: 'package' | 'service' | 'port' | 'file';
+  value: string;
+};
+
+type ServerDiff = {
+  checkpoint: string;
+  capturedAt: string;
+  fetchedAt: string;
+  total: number;
+  changes: DiffEntry[];
+};
+
 type AppState = {
   appVersion: string;
   platform: string;
@@ -92,8 +128,9 @@ type AppState = {
 };
 
 type Section = 'servers' | 'system' | 'activity';
-type DetailTab = 'overview' | 'connect' | 'logs' | 'resources';
+type DetailTab = 'overview' | 'connect' | 'snapshots' | 'logs' | 'resources';
 type LogCategory = 'all' | ServerLogEntry['category'];
+type DiffGroup = 'all' | DiffEntry['group'];
 type StatusVariant = 'running' | 'stopped' | 'pending' | 'error' | 'info';
 
 type EditValues = {
@@ -319,6 +356,12 @@ function jobLabel(kind: string): string {
       return 'Updating server';
     case 'sshkey':
       return 'Generating SSH key';
+    case 'checkpoint':
+      return 'Saving checkpoint';
+    case 'restore':
+      return 'Restoring snapshot';
+    case 'unsnapshot':
+      return 'Deleting snapshot';
     case 'domains':
       return 'Updating /etc/hosts';
     case 'bootstrap':
@@ -375,7 +418,14 @@ type IconName =
   | 'check'
   | 'sliders'
   | 'inbox'
-  | 'globe';
+  | 'globe'
+  | 'info'
+  | 'link'
+  | 'lines'
+  | 'gauge'
+  | 'history'
+  | 'rewind'
+  | 'camera';
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   server: (
@@ -438,6 +488,49 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
       <circle cx="8" cy="8" r="5.6" />
       <path d="M2.6 6.2h10.8M2.6 9.8h10.8" />
       <path d="M8 2.4c1.6 1.6 2.4 3.5 2.4 5.6S9.6 12 8 13.6C6.4 12 5.6 10.1 5.6 8s.8-4 2.4-5.6z" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="8" cy="8" r="5.6" />
+      <path d="M8 7.4v3.4M8 5.2h.01" />
+    </>
+  ),
+  link: (
+    <>
+      <path d="M6.9 9.1a2.6 2.6 0 0 0 3.9.3l1.4-1.4a2.6 2.6 0 0 0-3.7-3.7l-.8.8" />
+      <path d="M9.1 6.9a2.6 2.6 0 0 0-3.9-.3L3.8 8a2.6 2.6 0 0 0 3.7 3.7l.8-.8" />
+    </>
+  ),
+  lines: (
+    <>
+      <rect x="3" y="2.4" width="10" height="11.2" rx="1.5" />
+      <path d="M5.6 5.6h4.8M5.6 8h4.8M5.6 10.4h3" />
+    </>
+  ),
+  gauge: (
+    <>
+      <path d="M2.6 11.4a5.4 5.4 0 1 1 10.8 0" />
+      <path d="M8 11.4 10.5 6.9" />
+    </>
+  ),
+  history: (
+    <>
+      <path d="M2.9 8a5.4 5.4 0 1 0 1.6-3.8" />
+      <path d="M2.6 2.9v2.6h2.6" />
+      <path d="M8 5.4V8l2 1.2" />
+    </>
+  ),
+  rewind: (
+    <>
+      <path d="M13.4 4.4v7.2L8 8z" />
+      <path d="M8 4.4v7.2L2.6 8z" />
+    </>
+  ),
+  camera: (
+    <>
+      <path d="M2.4 5.6h2.3l1-1.6h4.6l1 1.6h2.3v6.8H2.4z" />
+      <circle cx="8" cy="8.8" r="2.1" />
     </>
   ),
 };
@@ -597,7 +690,7 @@ function Segments<T extends string>({
   label,
 }: {
   value: T;
-  options: { id: T; label: string }[];
+  options: { id: T; label: string; icon?: IconName }[];
   onChange: (id: T) => void;
   label: string;
 }) {
@@ -612,7 +705,8 @@ function Segments<T extends string>({
           className={`segment ${value === option.id ? 'segment-on' : ''}`}
           onClick={() => onChange(option.id)}
         >
-          {option.label}
+          {option.icon ? <Icon name={option.icon} size={13} /> : null}
+          <span>{option.label}</span>
         </button>
       ))}
     </div>
@@ -1062,6 +1156,7 @@ function App() {
               setDetailTab={setDetailTab}
               actionsBusy={actionsBusy}
               runAction={runAction}
+              jobs={state.jobs}
               onCreate={() => setCreateOpen(true)}
               onEdit={(instance) =>
                 setEditing({
@@ -1340,6 +1435,7 @@ function ServersScreen(props: {
   setDetailTab: (tab: DetailTab) => void;
   actionsBusy: Record<string, boolean>;
   runAction: (key: string, fn: () => Promise<unknown>) => Promise<void>;
+  jobs: Job[];
   onCreate: () => void;
   onEdit: (instance: Sandbox) => void;
   onRequestDelete: (instance: Sandbox) => void;
@@ -1442,10 +1538,11 @@ function ServersScreen(props: {
           value={props.detailTab}
           onChange={props.setDetailTab}
           options={[
-            { id: 'overview', label: 'Overview' },
-            { id: 'connect', label: 'Connect' },
-            { id: 'logs', label: 'Logs' },
-            { id: 'resources', label: 'Resources' },
+            { id: 'overview', label: 'Overview', icon: 'info' },
+            { id: 'connect', label: 'Connect', icon: 'link' },
+            { id: 'snapshots', label: 'Snapshots', icon: 'history' },
+            { id: 'logs', label: 'Logs', icon: 'lines' },
+            { id: 'resources', label: 'Resources', icon: 'gauge' },
           ]}
         />
       </div>
@@ -1576,7 +1673,444 @@ function ServersScreen(props: {
         </div>
       ) : null}
 
+      {props.detailTab === 'snapshots' ? (
+        <ServerSnapshotsTab instance={selectedInstance} jobs={props.jobs} />
+      ) : null}
+
       {props.detailTab === 'logs' ? <ServerLogsTab instance={selectedInstance} /> : null}
+    </>
+  );
+}
+
+// ============================================================================
+// Snapshots — save a known-good point, see what changed, roll back
+// ============================================================================
+
+type SnapshotJobKind = 'checkpoint' | 'restore' | 'unsnapshot';
+
+const SNAPSHOT_JOB_KINDS: SnapshotJobKind[] = ['checkpoint', 'restore', 'unsnapshot'];
+
+const DIFF_GROUPS: { id: DiffGroup; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'package', label: 'Packages' },
+  { id: 'service', label: 'Services' },
+  { id: 'port', label: 'Ports' },
+  { id: 'file', label: 'Files' },
+];
+
+function diffKindLabel(kind: DiffEntry['kind']): string {
+  if (kind === 'added') return 'Added';
+  if (kind === 'removed') return 'Removed';
+  return 'Changed';
+}
+
+function ServerSnapshotsTab({ instance, jobs }: { instance: Sandbox; jobs: Job[] }) {
+  const [list, setList] = useState<SnapshotList | null>(null);
+  const [diff, setDiff] = useState<ServerDiff | null>(null);
+  const [group, setGroup] = useState<DiffGroup>('all');
+  const [query, setQuery] = useState('');
+  const [label, setLabel] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [listError, setListError] = useState('');
+  const [diffError, setDiffError] = useState('');
+  const [restoring, setRestoring] = useState<SnapshotEntry | null>(null);
+  const [deleting, setDeleting] = useState<SnapshotEntry | null>(null);
+  // Start* returns as soon as the job is queued, but the job itself only shows
+  // up on the next state poll. This bridges that gap so a destructive action
+  // can't be fired twice.
+  const [pendingKind, setPendingKind] = useState<SnapshotJobKind | null>(null);
+
+  const listRequest = useRef(0);
+  const diffRequest = useRef(0);
+
+  const isRunning = instance.status.toLowerCase() === 'running';
+  // Saving a checkpoint and reading a diff both open an SSH session; restoring
+  // does not, so a stopped server can still roll back.
+  const canInspect = isRunning && instance.hasPrivateKey;
+
+  const activeJob = useMemo(
+    () =>
+      jobs.find(
+        (job) =>
+          job.target === instance.name &&
+          SNAPSHOT_JOB_KINDS.includes(job.kind as SnapshotJobKind) &&
+          job.state === 'running',
+      ),
+    [instance.name, jobs],
+  );
+  const busy = pendingKind !== null || Boolean(activeJob);
+  const busyKind = (activeJob?.kind as SnapshotJobKind | undefined) ?? pendingKind;
+
+  const loadList = useCallback(async () => {
+    const id = ++listRequest.current;
+    setLoading(true);
+    try {
+      const result = await ListSnapshots(instance.name);
+      if (listRequest.current !== id) return;
+      setList(result as unknown as SnapshotList);
+      setListError('');
+    } catch (err) {
+      if (listRequest.current === id) setListError(toMessage(err));
+    } finally {
+      if (listRequest.current === id) setLoading(false);
+    }
+  }, [instance.name]);
+
+  const loadDiff = useCallback(async () => {
+    if (!canInspect) return;
+    const id = ++diffRequest.current;
+    setDiffLoading(true);
+    try {
+      const result = await GetServerDiff(instance.name);
+      if (diffRequest.current !== id) return;
+      setDiff(result as unknown as ServerDiff);
+      setDiffError('');
+    } catch (err) {
+      if (diffRequest.current === id) {
+        setDiff(null);
+        setDiffError(toMessage(err));
+      }
+    } finally {
+      if (diffRequest.current === id) setDiffLoading(false);
+    }
+  }, [canInspect, instance.name]);
+
+  // Snapshots only change when the user acts, so this loads on selection
+  // instead of polling the way the logs view does.
+  useEffect(() => {
+    setList(null);
+    setDiff(null);
+    setListError('');
+    setDiffError('');
+    setLabel('');
+    setGroup('all');
+    setQuery('');
+    void loadList();
+    return () => {
+      listRequest.current += 1;
+      diffRequest.current += 1;
+    };
+  }, [loadList]);
+
+  const hasBaseline = Boolean(list?.hasBaseline);
+  useEffect(() => {
+    if (hasBaseline && canInspect && !busy) void loadDiff();
+  }, [busy, canInspect, hasBaseline, loadDiff]);
+
+  // Once the job shows up in the polled state, the local guard can stand down.
+  useEffect(() => {
+    if (activeJob) setPendingKind(null);
+  }, [activeJob]);
+
+  // ...and if it never shows up (the job failed before the next poll), don't
+  // leave the buttons disabled forever.
+  useEffect(() => {
+    if (pendingKind === null) return;
+    const timer = window.setTimeout(() => setPendingKind(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [pendingKind]);
+
+  // Reload once a checkpoint or restore finishes.
+  const lastJobID = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const current = activeJob?.id;
+    if (lastJobID.current && !current) {
+      void loadList();
+      setLabel('');
+    }
+    lastJobID.current = current;
+  }, [activeJob?.id, loadList]);
+
+  const start = useCallback(
+    async (kind: SnapshotJobKind, fn: () => Promise<string>) => {
+      setPendingKind(kind);
+      setListError('');
+      try {
+        await fn();
+      } catch (err) {
+        setPendingKind(null);
+        setListError(toMessage(err));
+      }
+    },
+    [],
+  );
+
+  const entries = list?.entries ?? [];
+  const latest = entries.find((entry) => entry.latest);
+  const normalizedQuery = query.trim().toLowerCase();
+  const changes = (diff?.changes ?? []).filter((change) => {
+    if (group !== 'all' && change.group !== group) return false;
+    if (!normalizedQuery) return true;
+    return change.value.toLowerCase().includes(normalizedQuery);
+  });
+  const countFor = (value: DiffGroup) =>
+    value === 'all'
+      ? diff?.changes.length ?? 0
+      : diff?.changes.filter((change) => change.group === value).length ?? 0;
+
+  return (
+    <>
+      <div className="detail-scroll">
+        <div className="pane">
+          {listError ? <p className="inline-error">{listError}</p> : null}
+
+          <Inspector
+            title="Checkpoint"
+            action={
+              <Button icon="refresh" busy={loading} onClick={() => void loadList()}>
+                Refresh
+              </Button>
+            }
+          >
+            <Row label="Baseline">
+              {list?.hasBaseline ? (
+                <span>
+                  <code>{list.baselineLabel}</code>
+                  {list.baselineAt ? <span className="muted"> · {list.baselineAt}</span> : null}
+                </span>
+              ) : (
+                <span className="muted">No checkpoint saved yet</span>
+              )}
+            </Row>
+            <Row label="Saved points">
+              {entries.length === 1 ? '1 snapshot' : `${entries.length} snapshots`}
+            </Row>
+            <Row label="New checkpoint">
+              <div className="ckpt-form">
+                <input
+                  className="search ckpt-name"
+                  type="text"
+                  value={label}
+                  onChange={(event) => setLabel(event.target.value)}
+                  placeholder="Optional name, e.g. before-coolify"
+                  aria-label="Checkpoint name"
+                  disabled={!canInspect || busy}
+                />
+                <Button
+                  variant="primary"
+                  icon="camera"
+                  busy={busy && busyKind === 'checkpoint'}
+                  disabled={!canInspect || busy}
+                  onClick={() =>
+                    void start('checkpoint', () => StartCheckpoint(instance.name, label.trim()))
+                  }
+                  title={
+                    !isRunning
+                      ? 'Start the server first'
+                      : !instance.hasPrivateKey
+                        ? 'Generate an SSH key first'
+                        : undefined
+                  }
+                >
+                  Save checkpoint
+                </Button>
+                <Button
+                  icon="rewind"
+                  disabled={!latest || busy}
+                  onClick={() => setRestoring(latest ?? null)}
+                  title={latest ? `Roll back to ${latest.label}` : 'No checkpoint to undo'}
+                >
+                  Undo
+                </Button>
+              </div>
+              <p className="hint ckpt-hint">
+                The server stops, saves, and starts again while the checkpoint is written — it is
+                unreachable for a few seconds.
+              </p>
+            </Row>
+          </Inspector>
+
+          <Inspector title="Saved points">
+            {entries.length === 0 ? (
+              <div className="pad-blank">
+                <p className="muted">
+                  No snapshots yet. Save a checkpoint before you install something, and you can put
+                  the server back exactly as it is now.
+                </p>
+              </div>
+            ) : (
+              <ul className="roster">
+                {entries.map((entry) => (
+                  <li key={entry.name}>
+                    <span className="roster-text">
+                      <strong>{entry.label}</strong>
+                      <small>
+                        {entry.checkpoint ? 'Checkpoint' : 'Snapshot'}
+                        {entry.latest ? ' · latest' : ''}
+                        {entry.current ? ' · diff baseline' : ''}
+                        {entry.comment ? ` · ${entry.comment}` : ''}
+                      </small>
+                    </span>
+                    <Button icon="rewind" disabled={busy} onClick={() => setRestoring(entry)}>
+                      Restore
+                    </Button>
+                    <Button
+                      variant="danger"
+                      icon="close"
+                      disabled={busy}
+                      onClick={() => setDeleting(entry)}
+                      title={`Delete ${entry.label} and reclaim its disk space`}
+                    >
+                      Delete
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {entries.length > 0 ? (
+              <p className="hint pad-blank">
+                Each snapshot holds a full copy of the disk. Delete the ones you have moved past to
+                get the space back.
+              </p>
+            ) : null}
+          </Inspector>
+
+          <Inspector
+            title="Changes since checkpoint"
+            action={
+              hasBaseline && canInspect ? (
+                <Button icon="refresh" busy={diffLoading} onClick={() => void loadDiff()}>
+                  Refresh
+                </Button>
+              ) : undefined
+            }
+          >
+            {!hasBaseline ? (
+              <div className="pad-blank">
+                <p className="muted">Save a checkpoint to start tracking what changes.</p>
+              </div>
+            ) : !isRunning ? (
+              <div className="pad-blank">
+                <p className="muted">Start the server to compare it against the checkpoint.</p>
+              </div>
+            ) : !instance.hasPrivateKey ? (
+              <div className="pad-blank">
+                <p className="muted">
+                  An SSH key is required. Generate one in the Connect tab to read changes.
+                </p>
+              </div>
+            ) : diffError ? (
+              <div className="pad-blank">
+                <p className="inline-error">{diffError}</p>
+              </div>
+            ) : (
+              <>
+                <div className="diffbar">
+                  <div className="filters" role="group" aria-label="Change type">
+                    {DIFF_GROUPS.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`filter ${group === item.id ? 'filter-on' : ''}`}
+                        onClick={() => setGroup(item.id)}
+                      >
+                        {item.label} <b>{countFor(item.id)}</b>
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    className="search"
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Filter"
+                    aria-label="Filter changes"
+                  />
+                </div>
+                {diff && diff.total === 0 ? (
+                  <div className="pad-blank">
+                    <p className="muted">
+                      Nothing has changed since <code>{diff.checkpoint}</code>.
+                    </p>
+                  </div>
+                ) : changes.length === 0 ? (
+                  <div className="pad-blank">
+                    <p className="muted">No changes match this filter.</p>
+                  </div>
+                ) : (
+                  <div className="difftable">
+                    {changes.map((change, index) => (
+                      <div
+                        key={`${change.group}-${change.kind}-${change.value}-${index}`}
+                        className={`diffrow diff-${change.kind}`}
+                      >
+                        <span className="diff-kind">{diffKindLabel(change.kind)}</span>
+                        <span className={`tag tag-${change.group}`}>{change.group}</span>
+                        <code>{change.value}</code>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </Inspector>
+        </div>
+      </div>
+
+      {restoring ? (
+        <ConfirmSheet
+          title={`Restore ${restoring.label}?`}
+          confirmLabel="Restore"
+          submitting={busy && busyKind === 'restore'}
+          onCancel={() => setRestoring(null)}
+          onConfirm={() => {
+            const target = restoring.name;
+            void start('restore', () => StartRestoreSnapshot(instance.name, target)).then(() =>
+              setRestoring(null),
+            );
+          }}
+          body={
+            <div className="danger">
+              <Icon name="rewind" size={18} />
+              <div>
+                <strong>
+                  {instance.name} goes back to how it was at {restoring.label}.
+                </strong>
+                <p>
+                  Everything installed or changed since that point is lost — files, packages, and
+                  running containers. The server restarts as part of the rollback.
+                </p>
+                <p className="muted">This cannot be undone.</p>
+              </div>
+            </div>
+          }
+        />
+      ) : null}
+
+      {deleting ? (
+        <ConfirmSheet
+          title={`Delete ${deleting.label}?`}
+          confirmLabel="Delete snapshot"
+          submitting={busy && busyKind === 'unsnapshot'}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => {
+            const target = deleting.name;
+            void start('unsnapshot', () => StartDeleteSnapshot(instance.name, target)).then(() =>
+              setDeleting(null),
+            );
+          }}
+          body={
+            <div className="danger">
+              <Icon name="close" size={18} />
+              <div>
+                <strong>{instance.name} can no longer be rolled back to this point.</strong>
+                <p>
+                  The snapshot and its disk space are removed. The server itself keeps running and
+                  is not otherwise affected.
+                </p>
+                {deleting.current ? (
+                  <p>
+                    This is the point the change list is measured from, so tracking stops until you
+                    save a new checkpoint.
+                  </p>
+                ) : null}
+                <p className="muted">This cannot be undone.</p>
+              </div>
+            </div>
+          }
+        />
+      ) : null}
     </>
   );
 }

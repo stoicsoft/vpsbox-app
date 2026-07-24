@@ -17,6 +17,10 @@ type SSHKeys = desktopbackend.SSHKeys
 type UpdateInfo = desktopbackend.UpdateInfo
 type ServerLogs = desktopbackend.ServerLogs
 type ServerLogEntry = desktopbackend.ServerLogEntry
+type SnapshotList = desktopbackend.SnapshotList
+type SnapshotEntry = desktopbackend.SnapshotEntry
+type ServerDiff = desktopbackend.ServerDiff
+type DiffEntry = desktopbackend.DiffEntry
 
 type DesktopApp struct {
 	ctx     context.Context
@@ -88,6 +92,26 @@ func (a *DesktopApp) CheckForUpdate() UpdateInfo {
 
 func (a *DesktopApp) GetServerLogs(name string) (ServerLogs, error) {
 	return a.backend.GetServerLogs(name)
+}
+
+func (a *DesktopApp) StartCheckpoint(name string, label string) (string, error) {
+	return a.backend.StartCheckpoint(name, label)
+}
+
+func (a *DesktopApp) StartRestoreSnapshot(name string, snapshot string) (string, error) {
+	return a.backend.StartRestoreSnapshot(name, snapshot)
+}
+
+func (a *DesktopApp) StartDeleteSnapshot(name string, snapshot string) (string, error) {
+	return a.backend.StartDeleteSnapshot(name, snapshot)
+}
+
+func (a *DesktopApp) ListSnapshots(name string) (SnapshotList, error) {
+	return a.backend.ListSnapshots(name)
+}
+
+func (a *DesktopApp) GetServerDiff(name string) (ServerDiff, error) {
+	return a.backend.GetServerDiff(name)
 }
 
 func (a *DesktopApp) OpenExternal(url string) {

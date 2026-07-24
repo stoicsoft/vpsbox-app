@@ -4,9 +4,13 @@ import {desktopbackend} from '../models';
 
 export function CheckForUpdate():Promise<desktopbackend.UpdateInfo>;
 
+export function GetServerDiff(arg1:string):Promise<desktopbackend.ServerDiff>;
+
 export function GetServerLogs(arg1:string):Promise<desktopbackend.ServerLogs>;
 
 export function GetState():Promise<desktopbackend.AppState>;
+
+export function ListSnapshots(arg1:string):Promise<desktopbackend.SnapshotList>;
 
 export function OpenExternal(arg1:string):Promise<void>;
 
@@ -16,7 +20,11 @@ export function ReadSSHKeys(arg1:string):Promise<desktopbackend.SSHKeys>;
 
 export function RevealKeyFolder(arg1:string):Promise<void>;
 
+export function StartCheckpoint(arg1:string,arg2:string):Promise<string>;
+
 export function StartCreateSandbox(arg1:desktopbackend.CreateSandboxInput):Promise<string>;
+
+export function StartDeleteSnapshot(arg1:string,arg2:string):Promise<string>;
 
 export function StartDestroySandbox(arg1:string):Promise<string>;
 
@@ -25,6 +33,8 @@ export function StartFixLocalDomains():Promise<string>;
 export function StartGenerateSSHKey(arg1:string):Promise<string>;
 
 export function StartInstallPackages():Promise<string>;
+
+export function StartRestoreSnapshot(arg1:string,arg2:string):Promise<string>;
 
 export function StartStartSandbox(arg1:string):Promise<string>;
 

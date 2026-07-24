@@ -164,6 +164,22 @@ export namespace desktopbackend {
 	        this.selfSigned = source["selfSigned"];
 	    }
 	}
+	export class DiffEntry {
+	    kind: string;
+	    group: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiffEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.group = source["group"];
+	        this.value = source["value"];
+	    }
+	}
 	
 	
 	export class SSHKeys {
@@ -181,6 +197,44 @@ export namespace desktopbackend {
 	    }
 	}
 	
+	export class ServerDiff {
+	    checkpoint: string;
+	    capturedAt: string;
+	    fetchedAt: string;
+	    total: number;
+	    changes: DiffEntry[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ServerDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.checkpoint = source["checkpoint"];
+	        this.capturedAt = source["capturedAt"];
+	        this.fetchedAt = source["fetchedAt"];
+	        this.total = source["total"];
+	        this.changes = this.convertValues(source["changes"], DiffEntry);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ServerLogEntry {
 	    id: string;
 	    category: string;
@@ -215,6 +269,66 @@ export namespace desktopbackend {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.fetchedAt = source["fetchedAt"];
 	        this.entries = this.convertValues(source["entries"], ServerLogEntry);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SnapshotEntry {
+	    name: string;
+	    label: string;
+	    comment: string;
+	    parent: string;
+	    checkpoint: boolean;
+	    latest: boolean;
+	    current: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SnapshotEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.label = source["label"];
+	        this.comment = source["comment"];
+	        this.parent = source["parent"];
+	        this.checkpoint = source["checkpoint"];
+	        this.latest = source["latest"];
+	        this.current = source["current"];
+	    }
+	}
+	export class SnapshotList {
+	    entries: SnapshotEntry[];
+	    hasBaseline: boolean;
+	    baselineLabel?: string;
+	    baselineAt?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SnapshotList(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entries = this.convertValues(source["entries"], SnapshotEntry);
+	        this.hasBaseline = source["hasBaseline"];
+	        this.baselineLabel = source["baselineLabel"];
+	        this.baselineAt = source["baselineAt"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

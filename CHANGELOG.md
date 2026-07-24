@@ -1,5 +1,23 @@
 # Changelog
 
+# [1.3.0] - Snapshots and Change Tracking
+
+## New Features
+
+- **Save and restore snapshots from the desktop** — Every server has a new Snapshots tab. Save a named checkpoint of a running sandbox, see your saved points listed newest first, and roll back to any of them — or undo to the most recent — in a click. Deleting a snapshot you no longer need reclaims its disk space.
+- **See what changed since your checkpoint** — The Snapshots tab tracks how a sandbox has drifted from its last checkpoint, listing the packages, services, listening ports, and files that were added, removed, or modified. Filter the changes by type or search them to find a specific one.
+- **Native macOS menu bar** — VPSBox now has a proper menu bar with standard Edit and Window commands, an About VPSBox panel showing your installed version, a Help menu that checks for updates, and quick links to the website and release notes.
+
+## Improvements
+
+- **Delete snapshots from the command line** — `vpsbox unsnapshot --snapshot <name>` removes a saved snapshot and reclaims its space, and `vpsbox reset` now reports which snapshot it restored from.
+- **Faster, clearer failures when a sandbox is stopped** — Saving a checkpoint or reading changes now confirms the sandbox is running and tells you to start it first, instead of waiting on a stopped VM.
+
+## Bug Fixes
+
+- Fixed **change tracking reporting phantom changes after restoring an older snapshot** — Restoring now re-reads the sandbox and re-anchors the comparison baseline to the point you rolled back to, so the next comparison measures from there rather than from the newest checkpoint.
+- Fixed **the comparison baseline outliving the snapshot it described** — Deleting the snapshot a baseline was measured against now clears that baseline too, so change tracking never compares against a point the sandbox can no longer be restored to.
+
 # [1.2.0] - Native Redesign and Whole-App Zoom
 
 ## New Features

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"runtime"
 	"strconv"
@@ -290,6 +291,24 @@ func (m *Multipass) Restore(ctx context.Context, name, snapshotName string) erro
 
 func multipassRestoreArgs(name, snapshotName string) []string {
 	return []string{"restore", "--destructive", fmt.Sprintf("%s.%s", name, snapshotName)}
+}
+
+// DeleteSnapshot removes a single snapshot and reclaims its disk space.
+// Multipass only frees the space on purge, and a deleted-but-unpurged snapshot
+// still occupies the name, so both steps run here.
+func (m *Multipass) DeleteSnapshot(ctx context.Context, name, snapshotName string) error {
+	if snapshotName == "" {
+		return errors.New("snapshot name is required")
+	}
+	if _, err := executil.Run(ctx, "multipass", multipassDeleteSnapshotArgs(name, snapshotName)...); err != nil {
+		return err
+	}
+	_, err := executil.Run(ctx, "multipass", "purge")
+	return err
+}
+
+func multipassDeleteSnapshotArgs(name, snapshotName string) []string {
+	return []string{"delete", fmt.Sprintf("%s.%s", name, snapshotName)}
 }
 
 func (m *Multipass) ListSnapshots(ctx context.Context, name string) ([]SnapshotInfo, error) {
