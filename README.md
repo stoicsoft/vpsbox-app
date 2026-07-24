@@ -10,6 +10,50 @@ This is a single, self-contained repo that includes both the desktop shell and t
 - packaging and release automation
 - CI builds for macOS, Linux, and Windows
 
+## What is VPSBox?
+
+VPSBox boots a local Ubuntu VM (via Multipass) and presents it as a fresh "VPS" —
+real IP, SSH access, root, systemd, an `/etc/hosts` entry, and a TLS cert — so you
+can try server deploy tools (Server Compass, Coolify, Dokploy, Dokku, CapRover,
+Kamal, etc.) without renting a real cloud server.
+
+### VPSBox vs Docker
+
+They solve overlapping problems at different layers, and are more nested than
+competing:
+
+|                | **VPSBox**                                        | **Docker**                             |
+| -------------- | ------------------------------------------------- | -------------------------------------- |
+| **Unit**       | A full **VM** — a real Ubuntu machine             | A **container** — an isolated process  |
+| **Kernel**     | Its own Linux kernel (via Multipass)              | Shares the host kernel                 |
+| **You get**    | A fresh VPS with its own IP, SSH, systemd, TLS    | A sandboxed app plus its dependencies  |
+| **Mental model** | "Here's a server I rented"                       | "Here's my app packaged up"            |
+| **Overhead**   | Heavy (full OS)                                   | Light (just the process)               |
+
+**Docker packages an application** — you build an image and run containers that
+share the host's kernel. It's for shipping and running apps reproducibly.
+
+**VPSBox fakes a rented server** — it boots a real Ubuntu VM locally and dresses
+it up to behave exactly like a fresh cloud VPS (IP, SSH key, hostname, TLS).
+
+The server deploy tools VPSBox is built to test (Coolify, Dokploy, Kamal, …)
+expect a *whole machine*: they SSH in as root, install Docker themselves,
+configure systemd, manage the firewall, and provision certs. You can't test that
+inside a single container. So the two nest rather than compete:
+
+```text
+VPSBox VM (Ubuntu)
+  └── the deploy tool you're testing (e.g. Coolify)
+        └── Docker containers it spins up for your apps
+```
+
+VPSBox gives you the **server**; Docker (running inside that server) gives you the
+**app isolation**.
+
+- Want to package and run an app? → Docker
+- Want a throwaway server to practice deploying to, that behaves like a real
+  cloud VPS? → VPSBox
+
 ## Demo
 
 [![Watch the demo](https://img.youtube.com/vi/AHGZ-QoUUWk/maxresdefault.jpg)](https://www.youtube.com/watch?v=AHGZ-QoUUWk)

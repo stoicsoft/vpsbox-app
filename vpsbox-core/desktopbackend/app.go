@@ -114,13 +114,35 @@ func (a *App) Startup(ctx context.Context) {
 	}
 	a.manager = manager
 
-	// Check for updates in the background so startup isn't blocked.
-	go func() {
-		info := checkForUpdate(false)
+	// Check for updates in the background so startup isn't blocked, then keep
+	// re-checking on a schedule so a long-running window still notices a new
+	// release without a restart. The frontend polls GetState, so a found update
+	// surfaces in the banner on the next poll.
+	go a.watchForUpdates(ctx)
+}
+
+// watchForUpdates does an initial background update check, then re-checks every
+// updateCheckPeriod until the app context is cancelled at shutdown.
+func (a *App) watchForUpdates(ctx context.Context) {
+	refresh := func(force bool) {
+		info := checkForUpdate(force)
 		a.mu.Lock()
 		a.update = &info
 		a.mu.Unlock()
-	}()
+	}
+
+	refresh(false)
+
+	ticker := time.NewTicker(updateCheckPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			refresh(true)
+		}
+	}
 }
 
 func (a *App) GetState() (AppState, error) {

@@ -22,6 +22,10 @@ export function ListSnapshots(arg1) {
   return window['go']['main']['DesktopApp']['ListSnapshots'](arg1);
 }
 
+export function ListTemplates() {
+  return window['go']['main']['DesktopApp']['ListTemplates']();
+}
+
 export function OpenExternal(arg1) {
   return window['go']['main']['DesktopApp']['OpenExternal'](arg1);
 }
@@ -48,6 +52,10 @@ export function StartCreateSandbox(arg1) {
 
 export function StartDeleteSnapshot(arg1, arg2) {
   return window['go']['main']['DesktopApp']['StartDeleteSnapshot'](arg1, arg2);
+}
+
+export function StartDeploy(arg1, arg2) {
+  return window['go']['main']['DesktopApp']['StartDeploy'](arg1, arg2);
 }
 
 export function StartDestroySandbox(arg1) {

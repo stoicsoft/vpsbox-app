@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import './style.css';
 import vpsboxIcon from './assets/images/vpsbox-icon.svg';
+import serverCompassLogo from './assets/images/servercompass-logo.svg';
 import {
   CheckForUpdate,
   GetServerDiff,
   GetServerLogs,
   GetState,
   ListSnapshots,
+  ListTemplates,
   OpenExternal,
   OpenShell,
   ReadSSHKeys,
@@ -15,6 +17,7 @@ import {
   StartCheckpoint,
   StartCreateSandbox,
   StartDeleteSnapshot,
+  StartDeploy,
   StartDestroySandbox,
   StartFixLocalDomains,
   StartGenerateSSHKey,
@@ -24,6 +27,8 @@ import {
   StartStopSandbox,
   StartUpdateSandbox,
 } from '../wailsjs/go/main/DesktopApp';
+
+const SERVER_COMPASS_URL = 'https://servercompass.app';
 
 // ============================================================================
 // Types — mirror the Go DesktopApp shapes; do not change without updating Go.
@@ -127,8 +132,20 @@ type AppState = {
   update?: UpdateInfo;
 };
 
+type DeployTemplate = {
+  id: string;
+  name: string;
+  summary: string;
+  category: 'platform' | 'app';
+  kind: 'installer' | 'compose' | 'starter';
+  icon: string;
+  port: number;
+  minMemoryMB: number;
+  note?: string;
+};
+
 type Section = 'servers' | 'system' | 'activity';
-type DetailTab = 'overview' | 'connect' | 'snapshots' | 'logs' | 'resources';
+type DetailTab = 'overview' | 'connect' | 'deploy' | 'snapshots' | 'logs' | 'resources';
 type LogCategory = 'all' | ServerLogEntry['category'];
 type DiffGroup = 'all' | DiffEntry['group'];
 type StatusVariant = 'running' | 'stopped' | 'pending' | 'error' | 'info';
@@ -362,6 +379,8 @@ function jobLabel(kind: string): string {
       return 'Restoring snapshot';
     case 'unsnapshot':
       return 'Deleting snapshot';
+    case 'deploy':
+      return 'Deploying app';
     case 'domains':
       return 'Updating /etc/hosts';
     case 'bootstrap':
@@ -425,7 +444,9 @@ type IconName =
   | 'gauge'
   | 'history'
   | 'rewind'
-  | 'camera';
+  | 'camera'
+  | 'grid'
+  | 'rocket';
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   server: (
@@ -531,6 +552,21 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M2.4 5.6h2.3l1-1.6h4.6l1 1.6h2.3v6.8H2.4z" />
       <circle cx="8" cy="8.8" r="2.1" />
+    </>
+  ),
+  grid: (
+    <>
+      <rect x="2.6" y="2.6" width="4.4" height="4.4" rx="1" />
+      <rect x="9" y="2.6" width="4.4" height="4.4" rx="1" />
+      <rect x="2.6" y="9" width="4.4" height="4.4" rx="1" />
+      <rect x="9" y="9" width="4.4" height="4.4" rx="1" />
+    </>
+  ),
+  rocket: (
+    <>
+      <path d="M8 2.2c2.2 1.2 3.3 3.4 3.3 6.2L8 11 4.7 8.4c0-2.8 1.1-5 3.3-6.2z" />
+      <circle cx="8" cy="6.4" r="1.1" />
+      <path d="M6.4 11c-1 .5-1.6 1.6-1.6 3 1.4 0 2.5-.6 3-1.6M9.6 11c1 .5 1.6 1.6 1.6 3-1.4 0-2.5-.6-3-1.6" />
     </>
   ),
 };
@@ -671,14 +707,28 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Inspector({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+function Inspector({
+  title,
+  action,
+  children,
+  flush,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+  flush?: boolean;
+}) {
   return (
     <section className="inspector">
       <header className="inspector-head">
         <span>{title}</span>
         {action}
       </header>
-      <dl className="kv">{children}</dl>
+      {flush ? (
+        <div className="inspector-body">{children}</div>
+      ) : (
+        <dl className="kv">{children}</dl>
+      )}
     </section>
   );
 }
@@ -1540,6 +1590,7 @@ function ServersScreen(props: {
           options={[
             { id: 'overview', label: 'Overview', icon: 'info' },
             { id: 'connect', label: 'Connect', icon: 'link' },
+            { id: 'deploy', label: 'Deploy', icon: 'rocket' },
             { id: 'snapshots', label: 'Snapshots', icon: 'history' },
             { id: 'logs', label: 'Logs', icon: 'lines' },
             { id: 'resources', label: 'Resources', icon: 'gauge' },
@@ -1673,6 +1724,10 @@ function ServersScreen(props: {
         </div>
       ) : null}
 
+      {props.detailTab === 'deploy' ? (
+        <ServerDeployTab instance={selectedInstance} jobs={props.jobs} />
+      ) : null}
+
       {props.detailTab === 'snapshots' ? (
         <ServerSnapshotsTab instance={selectedInstance} jobs={props.jobs} />
       ) : null}
@@ -1680,6 +1735,192 @@ function ServersScreen(props: {
       {props.detailTab === 'logs' ? <ServerLogsTab instance={selectedInstance} /> : null}
     </>
   );
+}
+
+// ============================================================================
+// Deploy — install a platform or app onto the sandbox, and promote Server Compass
+// ============================================================================
+
+function ServerDeployTab({ instance, jobs }: { instance: Sandbox; jobs: Job[] }) {
+  const [templates, setTemplates] = useState<DeployTemplate[] | null>(null);
+  const [loadError, setLoadError] = useState('');
+  // The template currently installing. Held for the whole job (the live job
+  // can't carry the template id), so the spinner stays on the right card.
+  const [deployingId, setDeployingId] = useState<string | null>(null);
+  // Templates deployed this session, so we can offer an "Open" link once the
+  // job finishes without persisting deploy state anywhere.
+  const [deployed, setDeployed] = useState<Set<string>>(new Set());
+
+  const isRunning = instance.status.toLowerCase() === 'running';
+  const canDeploy = isRunning && instance.hasPrivateKey;
+
+  const activeJob = useMemo(
+    () => jobs.find((job) => job.target === instance.name && job.kind === 'deploy' && job.state === 'running'),
+    [instance.name, jobs],
+  );
+  // Installs are heavy on a small sandbox — run one at a time.
+  const busy = deployingId !== null || Boolean(activeJob);
+
+  useEffect(() => {
+    let cancelled = false;
+    ListTemplates()
+      .then((result) => {
+        if (!cancelled) setTemplates(result as unknown as DeployTemplate[]);
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(toMessage(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Clear the spinner when the deploy job finishes (was running, now gone).
+  const lastJobID = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const current = activeJob?.id;
+    if (lastJobID.current && !current) setDeployingId(null);
+    lastJobID.current = current;
+  }, [activeJob?.id]);
+
+  // If the job never shows up (failed before the next poll), don't spin forever.
+  useEffect(() => {
+    if (deployingId === null || activeJob) return;
+    const timer = window.setTimeout(() => setDeployingId(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [deployingId, activeJob]);
+
+  const deploy = useCallback(
+    async (template: DeployTemplate) => {
+      setDeployingId(template.id);
+      setLoadError('');
+      setDeployed((prev) => new Set(prev).add(template.id));
+      try {
+        await StartDeploy(instance.name, template.id);
+      } catch (err) {
+        setDeployingId(null);
+        setLoadError(toMessage(err));
+      }
+    },
+    [instance.name],
+  );
+
+  const openApp = useCallback(
+    (port: number) => void OpenExternal(`http://${connectionHost(instance)}:${port}`),
+    [instance],
+  );
+
+  const platforms = (templates ?? []).filter((t) => t.category === 'platform');
+  const apps = (templates ?? []).filter((t) => t.category === 'app');
+  const sandboxMemoryMB = (instance.memoryGB || 0) * 1024;
+
+  const renderCard = (template: DeployTemplate) => {
+    const tight = sandboxMemoryMB > 0 && template.minMemoryMB > sandboxMemoryMB;
+    const isThis = deployingId === template.id;
+    return (
+      <div className="tpl" key={template.id}>
+        <div className="tpl-icon" aria-hidden>
+          {template.icon}
+        </div>
+        <div className="tpl-text">
+          <strong>
+            {template.name}
+            {tight ? <span className="tpl-flag">needs {gb(template.minMemoryMB)}</span> : null}
+          </strong>
+          <small>{template.summary}</small>
+          {template.note ? <small className="tpl-note">{template.note}</small> : null}
+        </div>
+        <div className="tpl-actions">
+          {deployed.has(template.id) ? (
+            <Button icon="external" onClick={() => openApp(template.port)}>
+              Open
+            </Button>
+          ) : null}
+          <Button
+            variant="primary"
+            icon="download"
+            busy={isThis}
+            disabled={!canDeploy || busy}
+            onClick={() => void deploy(template)}
+            title={
+              !isRunning
+                ? 'Start the server first'
+                : !instance.hasPrivateKey
+                  ? 'Generate an SSH key first'
+                  : `Install ${template.name} on :${template.port}`
+            }
+          >
+            Deploy
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="detail-scroll">
+      <div className="pane">
+        {loadError ? <p className="inline-error">{loadError}</p> : null}
+
+        {!isRunning ? (
+          <Blank
+            icon="rocket"
+            title="Start the server to deploy"
+            description="Apps and platforms install onto the running VM over SSH."
+          />
+        ) : !instance.hasPrivateKey ? (
+          <Blank
+            icon="key"
+            title="An SSH key is required"
+            description="Generate a key in the Connect tab so vpsbox can install onto the sandbox."
+          />
+        ) : (
+          <>
+            <Inspector title="Deploy platforms">
+              <div className="tpl-list">
+                {templates === null ? (
+                  <div className="pad-blank">
+                    <p className="muted">Loading templates…</p>
+                  </div>
+                ) : (
+                  platforms.map(renderCard)
+                )}
+              </div>
+            </Inspector>
+
+            <Inspector title="Apps & tools">
+              <div className="tpl-list">{apps.map(renderCard)}</div>
+            </Inspector>
+          </>
+        )}
+
+        <button
+          type="button"
+          className="sc-ad"
+          onClick={() => void OpenExternal(SERVER_COMPASS_URL)}
+          title="Open Server Compass"
+        >
+          <img src={serverCompassLogo} alt="Server Compass" className="sc-ad-logo" />
+          <div className="sc-ad-text">
+            <strong>Deploy 400+ apps, databases & stacks with Server Compass</strong>
+            <small>
+              These few are a taste. Server Compass deploys the full catalog — Postgres, Ghost,
+              Nextcloud, and hundreds more — to real VPS fleets when you're ready.
+            </small>
+          </div>
+          <span className="sc-ad-cta">
+            Get Server Compass
+            <Icon name="external" size={13} />
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function gb(mb: number): string {
+  const value = mb / 1024;
+  return Number.isInteger(value) ? `${value} GB` : `${value.toFixed(1)} GB`;
 }
 
 // ============================================================================
@@ -1921,7 +2162,7 @@ function ServerSnapshotsTab({ instance, jobs }: { instance: Sandbox; jobs: Job[]
             </Row>
           </Inspector>
 
-          <Inspector title="Saved points">
+          <Inspector title="Saved points" flush>
             {entries.length === 0 ? (
               <div className="pad-blank">
                 <p className="muted">

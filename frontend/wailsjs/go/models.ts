@@ -164,6 +164,34 @@ export namespace desktopbackend {
 	        this.selfSigned = source["selfSigned"];
 	    }
 	}
+	export class DeployTemplate {
+	    id: string;
+	    name: string;
+	    summary: string;
+	    category: string;
+	    kind: string;
+	    icon: string;
+	    port: number;
+	    minMemoryMB: number;
+	    note?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeployTemplate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.summary = source["summary"];
+	        this.category = source["category"];
+	        this.kind = source["kind"];
+	        this.icon = source["icon"];
+	        this.port = source["port"];
+	        this.minMemoryMB = source["minMemoryMB"];
+	        this.note = source["note"];
+	    }
+	}
 	export class DiffEntry {
 	    kind: string;
 	    group: string;

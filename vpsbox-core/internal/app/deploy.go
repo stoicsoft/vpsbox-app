@@ -2,12 +2,10 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"sort"
 
-	"github.com/stoicsoft/vpsbox/internal/templates"
 	"github.com/spf13/cobra"
+	"github.com/stoicsoft/vpsbox/internal/templates"
 )
 
 // Deploy installs a curated app template inside the named sandbox by SSHing
@@ -17,12 +15,9 @@ func (m *Manager) Deploy(ctx context.Context, name, templateID string, progress 
 	if !ok {
 		return fmt.Errorf("unknown template %q (try `vpsbox deploy --list`)", templateID)
 	}
-	instance, err := m.Info(ctx, name)
+	instance, err := m.requireRunningInstance(ctx, name)
 	if err != nil {
 		return err
-	}
-	if instance.Host == "" {
-		return errors.New("instance is not reachable yet — wait for it to come up")
 	}
 	if progress != nil {
 		progress(fmt.Sprintf("Installing %s on %s (this may take a minute)…", template.Name, instance.Name))
@@ -60,7 +55,7 @@ func newDeployCommand(ctx context.Context, manager *Manager) *cobra.Command {
 			if err := manager.Deploy(ctx, instanceName, templateID, func(s string) { fmt.Println("  " + s) }); err != nil {
 				return err
 			}
-			instance, err := manager.Info(ctx, instanceName)
+			instance, err := manager.requireInstance(instanceName)
 			if err != nil {
 				return err
 			}
@@ -80,15 +75,23 @@ func newDeployCommand(ctx context.Context, manager *Manager) *cobra.Command {
 }
 
 func printTemplateList() {
-	keys := make([]string, 0, len(templates.Templates))
-	for k := range templates.Templates {
-		keys = append(keys, k)
+	var platform, apps []templates.Template
+	for _, t := range templates.List() {
+		if t.Category == templates.CategoryPlatform {
+			platform = append(platform, t)
+		} else {
+			apps = append(apps, t)
+		}
 	}
-	sort.Strings(keys)
-	fmt.Println("Available app templates:")
+	printTemplateGroup("Deploy platforms:", platform)
 	fmt.Println()
-	for _, k := range keys {
-		t := templates.Templates[k]
-		fmt.Printf("  %-14s %s\n", t.Name, t.Summary)
+	printTemplateGroup("Apps & tools:", apps)
+}
+
+func printTemplateGroup(heading string, ts []templates.Template) {
+	fmt.Println(heading)
+	fmt.Println()
+	for _, t := range ts {
+		fmt.Printf("  %-14s %s\n", t.ID, t.Summary)
 	}
 }

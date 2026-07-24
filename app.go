@@ -21,6 +21,7 @@ type SnapshotList = desktopbackend.SnapshotList
 type SnapshotEntry = desktopbackend.SnapshotEntry
 type ServerDiff = desktopbackend.ServerDiff
 type DiffEntry = desktopbackend.DiffEntry
+type DeployTemplate = desktopbackend.DeployTemplate
 
 type DesktopApp struct {
 	ctx     context.Context
@@ -112,6 +113,14 @@ func (a *DesktopApp) ListSnapshots(name string) (SnapshotList, error) {
 
 func (a *DesktopApp) GetServerDiff(name string) (ServerDiff, error) {
 	return a.backend.GetServerDiff(name)
+}
+
+func (a *DesktopApp) ListTemplates() []DeployTemplate {
+	return a.backend.ListTemplates()
+}
+
+func (a *DesktopApp) StartDeploy(name string, templateID string) (string, error) {
+	return a.backend.StartDeploy(name, templateID)
 }
 
 func (a *DesktopApp) OpenExternal(url string) {

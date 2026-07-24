@@ -766,6 +766,14 @@ pre {
   grid-template-columns: 148px minmax(0, 1fr);
 }
 
+/* Full-width Inspector body (lists, hints) instead of the two-column kv grid. */
+.inspector-body > .roster {
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+}
+
 .kv > dt,
 .kv > dd {
   padding: 6px 11px;
@@ -1503,6 +1511,149 @@ pre {
 
 .diff-modified .diff-kind {
   color: var(--warn);
+}
+
+/* ============================================================================
+   Deploy — template cards and the Server Compass promo
+   ========================================================================== */
+
+.tpl-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tpl {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--raised);
+}
+
+.tpl:nth-child(even) {
+  background: var(--content-alt);
+}
+
+.tpl:last-child {
+  border-bottom: 0;
+}
+
+.tpl-icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  border-radius: var(--r-2);
+  background: var(--sunken);
+  border: 1px solid var(--line-soft);
+}
+
+.tpl-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tpl-text strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tpl-text small {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.tpl-note {
+  color: var(--warn) !important;
+}
+
+.tpl-flag {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--warn);
+  background: var(--warn-wash);
+  padding: 1px 5px;
+  border-radius: var(--r-1);
+}
+
+.tpl-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+/* Server Compass promo — the catalog these few are drawn from. */
+.sc-ad {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 15px;
+  text-align: left;
+  width: 100%;
+  border-radius: var(--r-3);
+  border: 1px solid var(--line);
+  background: linear-gradient(120deg, var(--accent-wash), var(--content-alt));
+}
+
+.sc-ad:hover {
+  border-color: var(--accent);
+  background: linear-gradient(120deg, var(--accent-wash-2), var(--accent-wash));
+}
+
+.sc-ad-logo {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-2);
+}
+
+.sc-ad-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sc-ad-text strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sc-ad-text small {
+  font-size: 11px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+.sc-ad-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  align-self: center;
+  padding: 5px 11px;
+  border-radius: var(--r-2);
+  background: linear-gradient(var(--accent-hi), var(--accent));
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 550;
+  white-space: nowrap;
 }
 
 /* ============================================================================

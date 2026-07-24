@@ -1,5 +1,19 @@
 # Changelog
 
+# [1.4.0] - One-Click Deploy and App Catalog
+
+## New Features
+
+- **Deploy platforms and apps from the desktop** — Every server has a new Deploy tab. Install a self-hosted deploy platform — Coolify, Dokploy, Dokku, or CapRover — onto your sandbox in one click, or pick from a curated set of ready-to-run apps and tools including Gitea, n8n, Uptime Kuma, Portainer, NocoDB, Vaultwarden, Metabase, Code Server, and more. Each install runs as a tracked job you can watch from the status bar, and once it's up, an Open button takes you straight to it.
+- **Right-sized for your sandbox** — Templates that need more memory than the sandbox currently has are flagged before you install, so you can resize first instead of watching an install run out of room. Passwords and encryption keys are generated on the server itself, never written into anything shipped to it.
+- **The full catalog with Server Compass** — The Deploy tab links straight to Server Compass, which deploys the complete catalog of 400+ apps, databases, and stacks to real VPS fleets when you outgrow the sandbox.
+
+## Improvements
+
+- **Group the command-line deploy list** — `vpsbox deploy --list` now separates deploy platforms from apps and tools, and reads in the same order as the desktop.
+- **Keep checking for updates while the app is open** — VPSBox re-checks for a newer release on a schedule, so a long-running window surfaces an update in the banner without needing a restart.
+- **Faster failure when deploying to a stopped sandbox** — Installing now confirms the sandbox is running and tells you to start it first, instead of waiting on a stopped VM.
+
 # [1.3.0] - Snapshots and Change Tracking
 
 ## New Features

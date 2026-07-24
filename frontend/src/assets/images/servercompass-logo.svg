@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e40af;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="serverGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="compassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#93c5fd;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#60a5fa;stop-opacity:1" />
+    </linearGradient>
+    
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background with gradient -->
+  <rect width="200" height="200" fill="url(#bgGradient)" rx="40"/>
+  
+  <!-- Outer compass circle -->
+  <circle cx="100" cy="100" r="75" fill="none" stroke="url(#compassGradient)" stroke-width="4" opacity="0.6"/>
+  
+  <!-- Inner compass circle -->
+  <circle cx="100" cy="100" r="60" fill="none" stroke="url(#compassGradient)" stroke-width="2" opacity="0.4"/>
+  
+  <!-- Central Server Tower -->
+  <g id="server">
+    <rect x="70" y="55" width="60" height="90" fill="url(#serverGradient)" rx="6" stroke="#93c5fd" stroke-width="2.5"/>
+    
+    <!-- Rack divisions -->
+    <line x1="70" y1="73" x2="130" y2="73" stroke="#1e40af" stroke-width="1.5"/>
+    <line x1="70" y1="91" x2="130" y2="91" stroke="#1e40af" stroke-width="1.5"/>
+    <line x1="70" y1="109" x2="130" y2="109" stroke="#1e40af" stroke-width="1.5"/>
+    <line x1="70" y1="127" x2="130" y2="127" stroke="#1e40af" stroke-width="1.5"/>
+    
+    <!-- LED indicators - simplified -->
+    <circle cx="80" cy="64" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="92" cy="64" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="104" cy="64" r="3" fill="#fbbf24" filter="url(#glow)"/>
+    
+    <circle cx="80" cy="82" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="92" cy="82" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="104" cy="82" r="3" fill="#10b981" filter="url(#glow)"/>
+    
+    <circle cx="80" cy="100" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="92" cy="100" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="104" cy="100" r="3" fill="#10b981" filter="url(#glow)"/>
+    
+    <circle cx="80" cy="118" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="92" cy="118" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="104" cy="118" r="3" fill="#10b981" filter="url(#glow)"/>
+    
+    <circle cx="80" cy="136" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="92" cy="136" r="3" fill="#10b981" filter="url(#glow)"/>
+    <circle cx="104" cy="136" r="3" fill="#10b981" filter="url(#glow)"/>
+  </g>
+  
+  <!-- Compass needle -->
+  <g transform="rotate(45 100 100)">
+    <path d="M 100 100 L 97 50 L 100 40 L 103 50 Z" fill="#ef4444" filter="url(#glow)"/>
+    <path d="M 100 100 L 97 150 L 100 160 L 103 150 Z" fill="#94a3b8" opacity="0.8"/>
+  </g>
+  
+  <!-- Central hub -->
+  <circle cx="100" cy="100" r="8" fill="#1e40af" stroke="#93c5fd" stroke-width="2"/>
+  <circle cx="100" cy="100" r="4" fill="#10b981" filter="url(#glow)"/>
+</svg>

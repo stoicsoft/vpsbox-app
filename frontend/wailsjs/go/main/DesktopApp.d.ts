@@ -12,6 +12,8 @@ export function GetState():Promise<desktopbackend.AppState>;
 
 export function ListSnapshots(arg1:string):Promise<desktopbackend.SnapshotList>;
 
+export function ListTemplates():Promise<Array<desktopbackend.DeployTemplate>>;
+
 export function OpenExternal(arg1:string):Promise<void>;
 
 export function OpenShell(arg1:string):Promise<void>;
@@ -25,6 +27,8 @@ export function StartCheckpoint(arg1:string,arg2:string):Promise<string>;
 export function StartCreateSandbox(arg1:desktopbackend.CreateSandboxInput):Promise<string>;
 
 export function StartDeleteSnapshot(arg1:string,arg2:string):Promise<string>;
+
+export function StartDeploy(arg1:string,arg2:string):Promise<string>;
 
 export function StartDestroySandbox(arg1:string):Promise<string>;
 
