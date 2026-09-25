@@ -1,0 +1,11 @@
+build/bin
+node_modules
+frontend/node_modules
+frontend/dist
+.DS_Store
+vpsbox-desktop
+vpsbox-desktop.exe
+BRANDKIT.md
+
+# Local agent/task tooling — never published.
+.1devtool/

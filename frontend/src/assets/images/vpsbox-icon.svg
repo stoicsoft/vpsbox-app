@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>VPSBox app icon</title>
+  <desc>VPSBox isometric server cube icon in blue on dark background</desc>
+  <defs>
+    <pattern id="g" x="0" y="0" width="36" height="36" patternUnits="userSpaceOnUse">
+      <circle cx="18" cy="18" r="1.8" fill="#60a5fa" opacity="0.10"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="196" fill="#0a0f1e"/>
+  <rect width="1024" height="1024" rx="196" fill="url(#g)"/>
+
+  <!-- Isometric cube (junction at 512,512, s=330) -->
+  <!-- dx = 330 * 0.866 = 285.8 ≈ 286, dy = 330 * 0.5 = 165 -->
+  <!-- Top: (512, 512-2*165)=(512,182) -->
+  <!-- Right: (512+286, 512-165)=(798,347) -->
+  <!-- Left: (226,347) -->
+  <!-- Bottom of cube: (512, 512+330)=(512,842) -->
+  <!-- Right-bottom: (798, 347+330)=(798,677) -->
+  <!-- Left-bottom: (226, 347+330)=(226,677) -->
+
+  <!-- Top face -->
+  <polygon points="512,182 798,347 512,512 226,347" fill="#60a5fa"/>
+  <!-- Left face -->
+  <polygon points="226,347 512,512 512,842 226,677" fill="#2563eb"/>
+  <!-- Right face -->
+  <polygon points="798,347 512,512 512,842 798,677" fill="#1e3a6e"/>
+
+  <!-- Rack bars on left face (at f=0.25, 0.50, 0.75) -->
+  <!-- f=0.25: left(226, 347+0.25*330)=(226,429.5) to right(512, 512+0.25*330)=(512,594.5) -->
+  <line x1="226" y1="430" x2="512" y2="595" stroke="#1d4ed8" stroke-width="8"/>
+  <!-- f=0.50: (226,512) to (512,677) -->
+  <line x1="226" y1="512" x2="512" y2="677" stroke="#1d4ed8" stroke-width="8"/>
+  <!-- f=0.75: (226,594.5) to (512,759.5) -->
+  <line x1="226" y1="595" x2="512" y2="760" stroke="#1d4ed8" stroke-width="8"/>
+
+  <!-- Power LED on right face -->
+  <circle cx="686" cy="588" r="33" fill="#60a5fa"/>
+  <circle cx="686" cy="588" r="15" fill="#eff6ff"/>
+
+  <!-- Outer silhouette -->
+  <polygon points="512,182 798,347 798,677 512,842 226,677 226,347" fill="none" stroke="#60a5fa" stroke-width="3" opacity="0.4"/>
+</svg>

@@ -1,0 +1,34 @@
+apiVersion: vpsbox.stoicsoft.com/v1alpha1
+kind: Lab
+metadata:
+  name: http-reverse-proxy-r1-preflight
+spec:
+  maxParallel: 1
+  instances:
+    - name: nginx-default
+      role: nginx-default
+      image: "24.04"
+      resources:
+        cpus: 2
+        memoryGB: 2
+        diskGB: 10
+      fixture: http-proxy/nginx-default
+      snapshots: [fresh, seeded-baseline]
+    - name: nginx-foreign
+      role: nginx-foreign
+      image: "24.04"
+      resources:
+        cpus: 2
+        memoryGB: 2
+        diskGB: 10
+      fixture: http-proxy/nginx-foreign
+      snapshots: [fresh, seeded-baseline]
+    - name: caddy
+      role: caddy-systemd
+      image: "24.04"
+      resources:
+        cpus: 2
+        memoryGB: 2
+        diskGB: 10
+      fixture: http-proxy/caddy-systemd
+      snapshots: [fresh, seeded-baseline]

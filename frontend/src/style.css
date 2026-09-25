@@ -1,0 +1,2694 @@
+/* ============================================================================
+   vpsbox — native desktop instrument panel
+   ----------------------------------------------------------------------------
+   Design register: macOS developer tool (Proxyman/Charles family).
+   Dense, chrome-first, information over decoration. Unified toolbar, source
+   list, inspector tables, and a traffic-list log view. Small type, hairline
+   separators, tight radii, one accent, semantic color reserved for state.
+   ========================================================================== */
+
+:root {
+  /* Chrome */
+  --window: #ececee;
+  --toolbar-top: #f2f2f4;
+  --toolbar-bottom: #e6e6e9;
+  --sidebar: #ededf0;
+  --sidebar-head: #f4f4f6;
+  --content: #ffffff;
+  --content-alt: #fafafb;
+  --raised: #ffffff;
+  --sunken: #f5f5f7;
+
+  /* Lines */
+  --line: #dcdce0;
+  --line-soft: #e8e8ec;
+  --line-strong: #c6c6cc;
+
+  /* Ink */
+  --ink: #16181c;
+  --ink-2: #5c6169;
+  --ink-3: #8a8f98;
+  --ink-4: #a9aeb6;
+
+  /* Accent + selection */
+  --accent: #0a6cff;
+  --accent-hi: #2f83ff;
+  --accent-ink: #ffffff;
+  --accent-wash: rgba(10, 108, 255, 0.1);
+  --accent-wash-2: rgba(10, 108, 255, 0.16);
+  --select: #0a6cff;
+  --select-ink: #ffffff;
+  --select-idle: rgba(0, 0, 0, 0.08);
+
+  /* Semantic — used only for state, never decoration */
+  --ok: #17913c;
+  --ok-wash: rgba(23, 145, 60, 0.12);
+  --warn: #b5710a;
+  --warn-wash: rgba(181, 113, 10, 0.13);
+  --bad: #d13328;
+  --bad-wash: rgba(209, 51, 40, 0.12);
+  --calm: #0f7f96;
+  --calm-wash: rgba(15, 127, 150, 0.12);
+  --violet: #8140c4;
+  --violet-wash: rgba(129, 64, 196, 0.12);
+
+  /* Geometry */
+  --r-1: 3px;
+  --r-2: 5px;
+  --r-3: 7px;
+  --r-4: 10px;
+  --r-pill: 99px;
+
+  --toolbar-h: 46px;
+  --status-h: 24px;
+  --rail: 232px;
+
+  /* Whole-app zoom. Set on <html> by the app; every px token rides along. */
+  --zoom: 1;
+
+  /* Type */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text",
+    "Segoe UI", "Inter", "Helvetica Neue", sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Menlo", "Cascadia Mono",
+    "Consolas", monospace;
+
+  --shadow-pop: 0 0 0 0.5px rgba(0, 0, 0, 0.16), 0 10px 34px rgba(0, 0, 0, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-rest: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.04);
+
+  color-scheme: light dark;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --window: #232427;
+    --toolbar-top: #35373b;
+    --toolbar-bottom: #2c2e31;
+    --sidebar: #262829;
+    --sidebar-head: #2b2d2f;
+    --content: #1c1e20;
+    --content-alt: #212325;
+    --raised: #26282b;
+    --sunken: #171819;
+
+    --line: #383a3e;
+    --line-soft: #303235;
+    --line-strong: #4a4d52;
+
+    --ink: #e9eaec;
+    --ink-2: #9ba1a8;
+    --ink-3: #757b82;
+    --ink-4: #5c6167;
+
+    --accent: #3e8bff;
+    --accent-hi: #62a2ff;
+    --accent-ink: #ffffff;
+    --accent-wash: rgba(62, 139, 255, 0.16);
+    --accent-wash-2: rgba(62, 139, 255, 0.24);
+    --select: #2f6ecb;
+    --select-ink: #ffffff;
+    --select-idle: rgba(255, 255, 255, 0.08);
+
+    --ok: #47c266;
+    --ok-wash: rgba(71, 194, 102, 0.16);
+    --warn: #f0a63a;
+    --warn-wash: rgba(240, 166, 58, 0.16);
+    --bad: #f4635a;
+    --bad-wash: rgba(244, 99, 90, 0.16);
+    --calm: #46c3dd;
+    --calm-wash: rgba(70, 195, 221, 0.16);
+    --violet: #b678ea;
+    --violet-wash: rgba(182, 120, 234, 0.16);
+
+    --shadow-pop: 0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 12px 40px rgba(0, 0, 0, 0.55);
+    --shadow-rest: 0 0 0 0.5px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* ============================================================================
+   Reset
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Scaling the root scales the layout viewport, so every px-based token —
+   type, spacing, icons, hairlines — grows and shrinks in proportion. */
+html {
+  zoom: var(--zoom);
+}
+
+body {
+  background: var(--window);
+  color: var(--ink);
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+dl,
+dd {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: default;
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+pre {
+  margin: 0;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--r-2);
+}
+
+::selection {
+  background: var(--accent-wash-2);
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--r-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-4);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ============================================================================
+   Shell — toolbar / workspace / status bar
+   ========================================================================== */
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: var(--toolbar-h) minmax(0, 1fr) var(--status-h);
+  background: var(--content);
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  align-items: center;
+  background: linear-gradient(var(--toolbar-top), var(--toolbar-bottom));
+  border-bottom: 1px solid var(--line);
+  --wails-draggable: drag;
+}
+
+.toolbar-lead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 12px;
+  border-right: 1px solid var(--line-soft);
+}
+
+/* The macOS traffic lights are native chrome — they never scale with zoom, so
+   the space reserved for them is divided back out to stay physically constant.
+   Same for the toolbar height, which keeps them vertically centred. */
+.app-mac {
+  --toolbar-h: calc(46px / var(--zoom));
+}
+
+.app-mac .toolbar-lead {
+  padding-left: calc(96px / var(--zoom));
+}
+
+.toolbar-mark {
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  flex: none;
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+}
+
+.toolbar-word {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  color: var(--ink-2);
+}
+
+.toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 10px 0 14px;
+  min-width: 0;
+}
+
+.crumb {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.crumb-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: none;
+  max-width: 45%;
+}
+
+.crumb-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  --wails-draggable: no-drag;
+}
+
+/* Toolbar item — flat until hover, like a native NSToolbarItem */
+.tbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--r-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+  font-size: 12px;
+  transition: background 90ms ease, color 90ms ease;
+}
+
+.tbtn:hover:not(:disabled) {
+  background: var(--select-idle);
+  color: var(--ink);
+}
+
+.tbtn:active:not(:disabled) {
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.tbtn:disabled {
+  color: var(--ink-4);
+}
+
+.tbtn-accent {
+  color: var(--accent);
+}
+
+.tbtn-icon {
+  padding: 0;
+  width: 26px;
+  justify-content: center;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  min-height: 0;
+}
+
+/* ============================================================================
+   Source list (sidebar)
+   ========================================================================== */
+
+.sidebar {
+  background: var(--sidebar);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.rail-group {
+  padding: 8px 8px 2px;
+}
+
+.rail-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 6px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.rail-label button {
+  color: var(--ink-3);
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-1);
+}
+
+.rail-label button:hover {
+  background: var(--select-idle);
+  color: var(--ink);
+}
+
+.rail-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: var(--r-2);
+  color: var(--ink);
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.rail-item:hover {
+  background: var(--select-idle);
+}
+
+.rail-item-on,
+.rail-item-on:hover {
+  background: var(--select);
+  color: var(--select-ink);
+}
+
+.rail-item svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.rail-item-on svg {
+  color: var(--select-ink);
+}
+
+.rail-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Keeps the LED optically centred where sibling rows put a 14px icon. */
+.rail-led {
+  width: 14px;
+  display: inline-flex;
+  justify-content: center;
+  flex: none;
+}
+
+.rail-item-muted .rail-name {
+  color: var(--ink-3);
+}
+
+.rail-item-vm .rail-name {
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.rail-tally {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  background: var(--select-idle);
+  border-radius: var(--r-pill);
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.rail-item-on .rail-tally {
+  color: var(--select-ink);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.rail-tally-live {
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.rail-flag {
+  width: 15px;
+  height: 15px;
+  border-radius: var(--r-pill);
+  background: var(--warn);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+/* Status LED — the one ornament, and it carries meaning */
+.led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--ink-4);
+  box-shadow: 0 0 0 2px transparent;
+}
+
+.led-running {
+  background: var(--ok);
+  box-shadow: 0 0 0 2.5px var(--ok-wash);
+}
+
+.led-pending {
+  background: var(--warn);
+  box-shadow: 0 0 0 2.5px var(--warn-wash);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.led-error {
+  background: var(--bad);
+  box-shadow: 0 0 0 2.5px var(--bad-wash);
+}
+
+.led-info {
+  background: var(--calm);
+  box-shadow: 0 0 0 2.5px var(--calm-wash);
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.rail-spacer {
+  flex: 1;
+  min-height: 12px;
+}
+
+.rail-promo {
+  margin: 0 8px;
+  padding: 8px 9px;
+  border-radius: var(--r-3);
+  border: 1px solid var(--line);
+  background: var(--content-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  width: calc(100% - 16px);
+}
+
+.rail-promo:hover {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.rail-promo strong {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.rail-promo small {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  line-height: 1.35;
+}
+
+/* ============================================================================
+   Detail area
+   ========================================================================== */
+
+.detail {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--content);
+  overflow: hidden;
+}
+
+.detail-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--content);
+}
+
+.detail-title {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.detail-title h1 {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.25px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.detail-title h1 .truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-title p {
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+.detail-title .addr {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+  user-select: text;
+}
+
+.detail-ops {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding-top: 2px;
+}
+
+/* Segmented control — the primary tab metaphor */
+.segments {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px;
+  gap: 1px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 11px;
+  border-radius: var(--r-2);
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition: background 80ms ease, color 80ms ease;
+}
+
+.segment svg {
+  flex: none;
+  opacity: 0.75;
+}
+
+.segment:hover:not(.segment-on) {
+  color: var(--ink);
+}
+
+.segment-on {
+  background: var(--raised);
+  color: var(--ink);
+  font-weight: 550;
+  box-shadow: var(--shadow-rest);
+}
+
+.segment-on svg {
+  opacity: 1;
+}
+
+.tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--content-alt);
+}
+
+/* Record data stays in a readable measure; only the log table goes full-bleed. */
+.pane {
+  padding: 16px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 880px;
+}
+
+/* ============================================================================
+   Inspector — key/value rows, the native way to show record data
+   ========================================================================== */
+
+.inspector {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  overflow: hidden;
+  background: var(--raised);
+}
+
+.inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 11px;
+  background: var(--content-alt);
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+}
+
+/* Full-width Inspector body (lists, hints) instead of the two-column kv grid. */
+.inspector-body > .roster {
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+}
+
+.kv > dt,
+.kv > dd {
+  padding: 6px 11px;
+  border-bottom: 1px solid var(--line-soft);
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.kv > dt {
+  color: var(--ink-2);
+  font-size: 12px;
+  background: var(--content-alt);
+  border-right: 1px solid var(--line-soft);
+}
+
+.kv > dd {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  user-select: text;
+  gap: 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kv > dt:last-of-type,
+.kv > dd:last-of-type {
+  border-bottom: 0;
+}
+
+/* ============================================================================
+   Buttons
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 11px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line-strong);
+  background: linear-gradient(var(--raised), var(--content-alt));
+  color: var(--ink);
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-rest);
+  transition: filter 80ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn:hover:not(:disabled) {
+    filter: brightness(1.15);
+  }
+}
+
+.btn:active:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+}
+
+.btn-lg {
+  height: 28px;
+  padding: 0 14px;
+  font-size: 12.5px;
+}
+
+.btn-primary {
+  background: linear-gradient(var(--accent-hi), var(--accent));
+  border-color: transparent;
+  color: var(--accent-ink);
+  font-weight: 550;
+}
+
+.btn-danger {
+  color: var(--bad);
+}
+
+.btn-spin,
+.spin {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  opacity: 0.85;
+  animation: rotate 0.7s linear infinite;
+  flex: none;
+}
+
+.spin-lg {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  color: var(--accent);
+}
+
+@keyframes rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.linkish {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ============================================================================
+   Chips
+   ========================================================================== */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex: none;
+}
+
+.chip-running {
+  color: var(--ok);
+  background: var(--ok-wash);
+}
+
+.chip-pending {
+  color: var(--warn);
+  background: var(--warn-wash);
+}
+
+.chip-error {
+  color: var(--bad);
+  background: var(--bad-wash);
+}
+
+.chip-stopped {
+  color: var(--ink-2);
+  background: var(--select-idle);
+}
+
+.chip-info {
+  color: var(--calm);
+  background: var(--calm-wash);
+}
+
+/* ============================================================================
+   Cards (System pane)
+   ========================================================================== */
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--content-alt);
+}
+
+.card-head h3 {
+  font-size: 12.5px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+.card-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.card-body p {
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  user-select: text;
+}
+
+.card-body code {
+  background: var(--sunken);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-1);
+  padding: 0 4px;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--content-alt);
+}
+
+.card-foot-spread {
+  justify-content: space-between;
+}
+
+.hint {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+/* Package roster */
+.roster {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-2);
+  overflow: hidden;
+}
+
+.roster li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--raised);
+}
+
+.roster li:nth-child(even) {
+  background: var(--content-alt);
+}
+
+.roster li:last-child {
+  border-bottom: 0;
+}
+
+.roster-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.roster-text strong {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.roster-text small {
+  font-size: 11px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Meter */
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.meter-track {
+  flex: 1;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  border: 1px solid var(--line-soft);
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+  transition: width 260ms ease;
+}
+
+.meter-fill-done {
+  background: var(--ok);
+}
+
+/* Staging an update has no byte count to report, so the bar pulses instead of
+   pretending to know how far along it is. */
+.meter-fill-pulse {
+  animation: meter-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes meter-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.update-progress {
+  flex-basis: 100%;
+  min-width: 160px;
+  margin-top: 2px;
+}
+
+.meter span {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   Banners
+   ========================================================================== */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12px;
+  flex: none;
+}
+
+.banner-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.banner-body strong {
+  font-weight: 600;
+}
+
+.banner-body p {
+  color: var(--ink-2);
+  user-select: text;
+}
+
+.banner-error {
+  background: var(--bad-wash);
+  color: var(--bad);
+}
+
+.banner-error .banner-body p {
+  color: var(--bad);
+}
+
+.banner-update {
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.banner-update .banner-body p {
+  color: var(--accent);
+}
+
+.banner-warn {
+  background: var(--warn-wash);
+  color: var(--warn);
+  border-radius: var(--r-3);
+  border-bottom: 0;
+}
+
+.banner-warn .banner-body p {
+  color: var(--warn);
+}
+
+/* Success banner inside the push/import sheets. */
+.banner-ok {
+  background: var(--ok-wash);
+  color: var(--ok);
+  border-radius: var(--r-3);
+  border-bottom: 0;
+}
+
+.banner-ok .banner-body p {
+  color: var(--ok);
+}
+
+/* Update actions sit between the message and the dismiss button. */
+.banner-ops {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.banner-x {
+  color: inherit;
+  opacity: 0.65;
+  font-size: 11.5px;
+  padding: 0 5px;
+  height: 18px;
+  border-radius: var(--r-1);
+  flex: none;
+}
+
+.banner-x:hover {
+  opacity: 1;
+  background: var(--select-idle);
+}
+
+.inline-error {
+  padding: 7px 10px;
+  border-radius: var(--r-2);
+  background: var(--bad-wash);
+  color: var(--bad);
+  font-size: 11.5px;
+  user-select: text;
+}
+
+/* ============================================================================
+   Log table — the signature view. Reads as a packet/traffic list.
+   ========================================================================== */
+
+.logs {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.logbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 18px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--content-alt);
+  flex: none;
+}
+
+.filters {
+  display: inline-flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--r-pill);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.filter:hover {
+  background: var(--select-idle);
+  color: var(--ink);
+}
+
+.filter-on,
+.filter-on:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.filter b {
+  font-weight: 600;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.logbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.search {
+  height: 24px;
+  width: 190px;
+  padding: 0 9px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--raised);
+  font-size: 12px;
+  user-select: text;
+}
+
+.search::placeholder {
+  color: var(--ink-4);
+}
+
+.search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+
+.log-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 18px;
+  font-size: 11px;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line-soft);
+  flex: none;
+}
+
+.log-note small {
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.logtable {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  user-select: text;
+}
+
+.logrow {
+  display: grid;
+  grid-template-columns: 84px 92px 148px minmax(300px, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 18px 4px 15px;
+  border-bottom: 1px solid var(--line-soft);
+  border-left: 3px solid transparent;
+  font-size: 11.5px;
+}
+
+.logrow:nth-child(even) {
+  background: var(--content-alt);
+}
+
+.logrow:hover {
+  background: var(--accent-wash);
+}
+
+.logrow-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sidebar-head);
+  border-bottom: 1px solid var(--line);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.logrow-head:hover {
+  background: var(--sidebar-head);
+}
+
+.logrow time {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.logrow .src {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logrow code {
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.log-level-warn {
+  border-left-color: var(--warn);
+}
+
+.log-level-error {
+  border-left-color: var(--bad);
+}
+
+/* Category tag — the color code that makes the table scannable */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: var(--r-1);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: var(--sans);
+  justify-self: start;
+}
+
+.tag-system {
+  color: var(--ink-2);
+  background: var(--select-idle);
+}
+
+.tag-network {
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.tag-route {
+  color: var(--violet);
+  background: var(--violet-wash);
+}
+
+.tag-docker {
+  color: var(--calm);
+  background: var(--calm-wash);
+}
+
+/* Diff groups reuse the log tag palette so a category keeps one color. */
+.tag-package {
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.tag-service {
+  color: var(--violet);
+  background: var(--violet-wash);
+}
+
+.tag-port {
+  color: var(--calm);
+  background: var(--calm-wash);
+}
+
+.tag-file {
+  color: var(--ink-2);
+  background: var(--select-idle);
+}
+
+/* ============================================================================
+   Snapshots — checkpoint controls and the change list
+   ========================================================================== */
+
+.ckpt-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ckpt-name {
+  flex: 1;
+  min-width: 150px;
+}
+
+.ckpt-hint {
+  margin-top: 6px;
+}
+
+/* Inspector bodies are borderless rows; blocks that replace a row need their
+   own padding to sit on the same rhythm. */
+.pad-blank {
+  padding: 10px 11px 12px;
+}
+
+.pad-blank p {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.diffbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--content-alt);
+}
+
+.diffbar .search {
+  max-width: 180px;
+}
+
+.difftable {
+  max-height: 420px;
+  overflow: auto;
+  user-select: text;
+}
+
+.diffrow {
+  display: grid;
+  grid-template-columns: 72px 74px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 11px 4px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  border-left: 3px solid transparent;
+  font-size: 11.5px;
+}
+
+.diffrow:last-child {
+  border-bottom: 0;
+}
+
+.diffrow:nth-child(even) {
+  background: var(--content-alt);
+}
+
+.diffrow:hover {
+  background: var(--accent-wash);
+}
+
+.diffrow code {
+  font-family: var(--mono);
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.45;
+}
+
+.diff-kind {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.diff-added {
+  border-left-color: var(--ok);
+}
+
+.diff-added .diff-kind {
+  color: var(--ok);
+}
+
+.diff-removed {
+  border-left-color: var(--bad);
+}
+
+.diff-removed .diff-kind {
+  color: var(--bad);
+}
+
+.diff-modified {
+  border-left-color: var(--warn);
+}
+
+.diff-modified .diff-kind {
+  color: var(--warn);
+}
+
+/* ============================================================================
+   Deploy — template cards and the Server Compass promo
+   ========================================================================== */
+
+.tpl-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tpl {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--raised);
+}
+
+.tpl:nth-child(even) {
+  background: var(--content-alt);
+}
+
+.tpl:last-child {
+  border-bottom: 0;
+}
+
+.tpl-icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  border-radius: var(--r-2);
+  background: var(--sunken);
+  border: 1px solid var(--line-soft);
+}
+
+.tpl-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tpl-text strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tpl-text small {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.tpl-note {
+  color: var(--warn) !important;
+}
+
+.tpl-flag {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--warn);
+  background: var(--warn-wash);
+  padding: 1px 5px;
+  border-radius: var(--r-1);
+}
+
+.tpl-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+/* Live apps — what the sandbox actually publishes right now. */
+.apps {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Every row is its own grid, so the columns are fixed widths (not auto) —
+   otherwise each row sizes independently and the header stops lining up. */
+.app-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) 52px minmax(0, 1.7fr) 96px 94px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--raised);
+}
+
+.app-row > .btn {
+  justify-self: end;
+}
+
+.app-row:nth-child(even) {
+  background: var(--content-alt);
+}
+
+.app-row:last-child {
+  border-bottom: 0;
+}
+
+.app-head {
+  padding: 6px 11px;
+  background: var(--content-alt);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.app-what {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-what strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-icon {
+  font-size: 15px;
+  flex: none;
+}
+
+.app-port,
+.app-url {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  user-select: text;
+}
+
+.app-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Server Compass promo — the catalog these few are drawn from. */
+.sc-ad {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 15px;
+  text-align: left;
+  width: 100%;
+  border-radius: var(--r-3);
+  border: 1px solid var(--line);
+  background: linear-gradient(120deg, var(--accent-wash), var(--content-alt));
+}
+
+.sc-ad:hover {
+  border-color: var(--accent);
+  background: linear-gradient(120deg, var(--accent-wash-2), var(--accent-wash));
+}
+
+.sc-ad-logo {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-2);
+}
+
+.sc-ad-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sc-ad-text strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sc-ad-text small {
+  font-size: 11px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+.sc-ad-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  align-self: center;
+  padding: 5px 11px;
+  border-radius: var(--r-2);
+  background: linear-gradient(var(--accent-hi), var(--accent));
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   Commands (Connect pane)
+   ========================================================================== */
+
+.cmd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cmd {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  overflow: hidden;
+  background: var(--raised);
+}
+
+.cmd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--content-alt);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.cmd-head strong {
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--ink-2);
+}
+
+.cmd pre {
+  padding: 9px 11px;
+  overflow-x: auto;
+  background: var(--sunken);
+  user-select: text;
+}
+
+.cmd pre code {
+  color: var(--ink);
+  white-space: pre;
+}
+
+.copy {
+  height: 19px;
+  padding: 0 8px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line-strong);
+  background: var(--raised);
+  font-size: 10.5px;
+  color: var(--ink-2);
+  flex: none;
+}
+
+.copy:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.copy-done {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+/* ============================================================================
+   Activity
+   ========================================================================== */
+
+.feed {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+
+.feed-item {
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--raised);
+}
+
+.feed-item:nth-child(even) {
+  background: var(--content-alt);
+}
+
+.feed-item:last-child {
+  border-bottom: 0;
+}
+
+.feed-row {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+/* Expanded job output — a terminal tail, not prose. */
+.feed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--ink-2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.feed-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.feed-toggle-blank {
+  width: 1px;
+}
+
+.feed-log {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0 12px 10px;
+  padding: 9px 11px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line-soft);
+  background: var(--sunken);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.feed-what {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.feed-what strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.feed-what small {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-row p {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+
+.group-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 0 2px;
+}
+
+/* ============================================================================
+   Empty / loading states
+   ========================================================================== */
+
+.blank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 44px 24px;
+  text-align: center;
+  flex: 1;
+  min-height: 180px;
+}
+
+.blank svg {
+  color: var(--ink-4);
+  margin-bottom: 4px;
+}
+
+.blank strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.blank p {
+  font-size: 12px;
+  color: var(--ink-3);
+  max-width: 380px;
+  line-height: 1.5;
+}
+
+.blank-act {
+  margin-top: 6px;
+}
+
+/* ============================================================================
+   Setup (first run)
+   ========================================================================== */
+
+.setup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.step-no {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-1);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 10.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.step-no-idle {
+  background: var(--select-idle);
+  color: var(--ink-3);
+}
+
+.card-locked {
+  opacity: 0.55;
+}
+
+.facts li {
+  display: flex;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-2);
+  padding: 2px 0;
+  line-height: 1.5;
+}
+
+.facts li::before {
+  content: "–";
+  color: var(--ink-4);
+  flex: none;
+}
+
+.facts code {
+  background: var(--sunken);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-1);
+  padding: 0 4px;
+}
+
+/* ============================================================================
+   Status bar
+   ========================================================================== */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  background: linear-gradient(var(--toolbar-top), var(--toolbar-bottom));
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.statusbar-seg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.statusbar-seg .led {
+  width: 6px;
+  height: 6px;
+}
+
+.statusbar-gap {
+  flex: 1;
+}
+
+.statusbar-busy {
+  color: var(--accent);
+}
+
+.statusbar-busy .spin {
+  width: 9px;
+  height: 9px;
+  border-width: 1.2px;
+}
+
+.statusbar-div {
+  width: 1px;
+  height: 11px;
+  background: var(--line-strong);
+  flex: none;
+}
+
+.statusbar code {
+  font-size: 10.5px;
+  color: inherit;
+}
+
+/* Zoom stepper */
+.zoomer {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.zoomer button {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-1);
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.zoomer button:hover:not(:disabled) {
+  background: var(--select-idle);
+  color: var(--ink);
+}
+
+.zoomer button:disabled {
+  opacity: 0.35;
+}
+
+.zoomer output {
+  min-width: 34px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  border-radius: var(--r-1);
+  padding: 1px 2px;
+}
+
+.zoomer output:hover {
+  background: var(--select-idle);
+  color: var(--ink);
+}
+
+/* ============================================================================
+   Overlays — sheets
+   ========================================================================== */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.34);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  /* Sheets hang from the toolbar, so it stays visible and draggable. */
+  padding: var(--toolbar-h) 24px 0;
+  z-index: 40;
+  animation: fade 130ms ease;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Sheet drops from the title bar, like a native NSWindow sheet */
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100% - 40px);
+  overflow-y: auto;
+  background: var(--raised);
+  border-radius: 0 0 var(--r-4) var(--r-4);
+  box-shadow: var(--shadow-pop);
+  display: flex;
+  flex-direction: column;
+  animation: drop 180ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.sheet-wide {
+  max-width: 560px;
+}
+
+@keyframes drop {
+  from {
+    transform: translateY(-14px);
+    opacity: 0;
+  }
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.sheet-head h2 {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.sheet-head small {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+
+.sheet-x {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-1);
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.sheet-x:hover {
+  background: var(--select-idle);
+  color: var(--ink);
+}
+
+.sheet-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sheet-body > p {
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  user-select: text;
+}
+
+.sheet-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--content-alt);
+  position: sticky;
+  bottom: 0;
+}
+
+/* Forms */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field > span {
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--ink-2);
+}
+
+.field > small {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.field input {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line-strong);
+  background: var(--content);
+  font-size: 12.5px;
+  width: 100%;
+  user-select: text;
+}
+
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* SSH user / host / port row in the push and import sheets: the host gets
+   the room, the port stays small. */
+.field-row-target {
+  grid-template-columns: 120px minmax(0, 1fr) 84px;
+}
+
+/* Migration plan preview (push/import sheets) */
+.plan {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.plan-title {
+  color: var(--ink-1);
+}
+
+.plan-size {
+  margin-left: 8px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+.plan-list strong {
+  color: var(--ink-1);
+  margin-right: 4px;
+}
+
+.plan-notes {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.plan-notes strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink-2);
+}
+
+.plan-notes ul {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 16px;
+  list-style: disc;
+}
+
+.plan-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+
+/* Input with a trailing button (the SSH key path + Browse). */
+.field-with-action {
+  display: flex;
+  gap: 8px;
+}
+
+.field-with-action input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Live output tail under the stage list while a push/import runs. */
+.joblog {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  background: var(--content);
+  padding: 8px 10px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  user-select: text;
+}
+
+.joblog code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+.check input {
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+  width: auto;
+}
+
+/* Provision stages */
+.stages {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+
+.stage {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 11px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--raised);
+}
+
+.stage:last-child {
+  border-bottom: 0;
+}
+
+.stage-mark {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-3);
+  font-size: 9.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.stage-text strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.stage-text small {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.stage-done .stage-mark {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+.stage-active {
+  background: var(--accent-wash);
+}
+
+.stage-active .stage-mark {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.stage-active .stage-text strong {
+  color: var(--accent);
+}
+
+.stage-error .stage-mark {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: #fff;
+}
+
+.stage-idle {
+  opacity: 0.55;
+}
+
+.stage-spin {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.4px solid var(--accent);
+  border-top-color: transparent;
+  animation: rotate 0.7s linear infinite;
+}
+
+/* Key viewer */
+.keybox {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+
+.keybox pre {
+  padding: 10px;
+  background: var(--sunken);
+  max-height: 260px;
+  overflow: auto;
+  user-select: text;
+}
+
+.keybox pre code {
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+/* Danger zone */
+.danger {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-3);
+  background: var(--bad-wash);
+}
+
+.danger div {
+  flex: 1;
+  min-width: 0;
+}
+
+.danger strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bad);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.danger p {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+/* ============================================================================
+   Toasts
+   ========================================================================== */
+
+.dock {
+  position: fixed;
+  right: 14px;
+  bottom: calc(var(--status-h) + 12px);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  max-width: 320px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: var(--r-3);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-pop);
+  animation: slide 180ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes slide {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+
+.toast .spin {
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.toast-text strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.toast-text small {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+}
+
+.toast-text p {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+.dock > button {
+  font-size: 11px;
+  color: var(--accent);
+  padding: 3px 6px;
+  border-radius: var(--r-1);
+}
+
+.dock > button:hover {
+  background: var(--accent-wash);
+}
+
+/* ============================================================================
+   Utility
+   ========================================================================== */
+
+.muted {
+  color: var(--ink-3);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.boot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  color: var(--ink-3);
+}
+
+.boot strong {
+  font-size: 12.5px;
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.boot p {
+  font-size: 11.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 900px) {
+  :root {
+    --rail: 190px;
+  }
+
+  .logrow {
+    grid-template-columns: 70px 80px 110px minmax(200px, 1fr);
+  }
+
+  .kv {
+    grid-template-columns: 118px minmax(0, 1fr);
+  }
+
+  /* The URL is the first thing to go — the port and the button carry the row. */
+  .app-row {
+    grid-template-columns: minmax(0, 1fr) 52px 96px 94px;
+  }
+
+  .app-url,
+  .app-head > span:nth-child(3) {
+    display: none;
+  }
+}

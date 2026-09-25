@@ -1,0 +1,25 @@
+apiVersion: vpsbox.stoicsoft.com/v1alpha1
+kind: Lab
+metadata:
+  name: easypanel-compatibility
+spec:
+  maxParallel: 2
+  instances:
+    - name: stable
+      role: easypanel-stable
+      image: "24.04"
+      resources:
+        cpus: 4
+        memoryGB: 6
+        diskGB: 30
+      fixture: easypanel/mimic-stable
+      snapshots: [fresh, seeded-baseline]
+    - name: canary
+      role: easypanel-canary
+      image: "24.04"
+      resources:
+        cpus: 4
+        memoryGB: 6
+        diskGB: 30
+      fixture: easypanel/mimic-canary
+      snapshots: [fresh, seeded-baseline]

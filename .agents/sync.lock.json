@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": 1784468765201,
+  "entries": {},
+  "detached": [],
+  "sourceHashes": {},
+  "reloadRequiredTargets": [
+    "codex",
+    "cline",
+    "opencode"
+  ]
+}

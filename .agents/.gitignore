@@ -1,0 +1,5 @@
+# 1DEVTOOL:BEGIN agent-context-hub
+local/
+*.local.json
+*.tmp
+# 1DEVTOOL:END agent-context-hub
